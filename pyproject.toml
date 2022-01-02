@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "super-auto-pets-ai"
+version = "0.1.0"
+description = ""
+authors = ["Steven Rybicki <steveryb@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
