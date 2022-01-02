@@ -1,4 +1,4 @@
-from sap.pet import Pet, Trigger, TriggerType, Fly
+from sap.pet import Pet, Trigger, TriggerType, Fly, pick_unique_pets
 from dataclasses import replace
 from sap.player import Player
 from sap.shop import Shop
@@ -19,7 +19,7 @@ class Ant(Pet):
         Trigger]:
         """Ant adds a buff to a random pet: https://superauto.pet/pet/ant"""
         if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
-            for pet in self.pick_unique_pets(my_team, 1, [self]):
+            for pet in pick_unique_pets(my_team, 1, [self], random_gen=self.random_gen):
                 pet.buff(power=self.level * 2, toughness=self.level)
 
         return super()._resolve_trigger(trigger, my_team, other_team)
@@ -35,7 +35,7 @@ class Beaver(Pet):
         if trigger.type == TriggerType.PET_SOLD and trigger.pet == self:
             if trigger.player is None:
                 raise ValueError("Can't resolve sell events with no player")
-            for pet in self.pick_unique_pets(trigger.player.pets, 2, exclusion=[self]):
+            for pet in pick_unique_pets(trigger.player.pets, 2, exclusion=[self], random_gen=self.random_gen):
                 pet.buff(toughness=self.level)
 
         return super()._resolve_trigger(trigger, my_team, other_team)
@@ -66,7 +66,7 @@ class Otter(Pet):
         if trigger.type == TriggerType.PET_BOUGHT and trigger.pet == self:
             if trigger.player is None:
                 raise ValueError("Can't resolve sell events with no player")
-            for pet in self.pick_unique_pets(trigger.player.pets, 1, [self]):
+            for pet in pick_unique_pets(trigger.player.pets, 1, [self], random_gen=self.random_gen):
                 pet.buff(power=self.level, toughness=self.level)
 
         return super()._resolve_trigger(trigger, my_team, other_team)
@@ -138,7 +138,7 @@ class Mosquito(Pet):
             List[Trigger]:
         triggers = []
         if trigger.type == TriggerType.BATTLE_STARTED:
-            for pet in self.pick_unique_pets(other_team, 1, []):
+            for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=self.level))
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)
@@ -266,7 +266,7 @@ class Shrimp(Pet):
             List[Trigger]:
 
         if trigger.type == TriggerType.PET_SOLD:
-            for pet in self.pick_unique_pets(my_team, 1, [self]):
+            for pet in pick_unique_pets(my_team, 1, [self], random_gen=self.random_gen):
                 pet.buff(toughness=self.level)
 
         return super()._resolve_trigger(trigger, my_team, other_team)
@@ -355,7 +355,7 @@ class Blowfish(Pet):
         Trigger]:
         triggers = []
         if trigger.type == TriggerType.PET_DAMAGED and trigger.pet == self:
-            for pet in self.pick_unique_pets(other_team, 1, []):
+            for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=self.level * 2))
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)
@@ -696,7 +696,7 @@ class Leopard(Pet):
             List[Trigger]:
         triggers = []
         if trigger.type == TriggerType.BATTLE_STARTED:
-            for pet in self.pick_unique_pets(other_team, self.level, []):
+            for pet in pick_unique_pets(other_team, self.level, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=math.floor(0.5 * self.power)))
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)
@@ -727,7 +727,7 @@ class Snake(Pet):
         triggers = []
         if trigger.type == TriggerType.AFTER_ATTACK and trigger.pet in my_team:
             if my_team.index(trigger.pet) == my_team.index(self) - 1:
-                for pet in self.pick_unique_pets(other_team, 1, []):
+                for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=5 * self.level))
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)

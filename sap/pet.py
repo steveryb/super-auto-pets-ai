@@ -57,6 +57,7 @@ class Trigger:
 class Food(ABC):
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     cost: int = 3
+    random_gen: Random = Random()
 
     def feed(self, pet: "Pet", player: "Player"):
         self.apply(pet, player)
@@ -66,13 +67,46 @@ class Food(ABC):
         return []
 
     @abstractmethod
-    def apply(self, pet: "Pet", player: "Player"):
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
         raise NotImplementedError()
 
 
 class EquipableFood(Food):
-    def apply(self, pet: "Pet", player: "Player"):
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        if pet is None:
+            assert ValueError("Can't apply food to None pet")
         pet.equipped_food = self
+
+    def after_attack(self, pet: "Pet"):
+        pass
+
+    def attack_bonus(self) -> int:
+        return 0
+
+    def reduce_damage(self, damage: int) -> int:
+        return damage
+
+    def after_damage(self):
+        pass
+
+
+def pick_unique_pets(
+        pets: List["Pet"],
+        number: int,
+        exclusion: List["Pet"] = None,
+        require_living: bool = True,
+        random_gen: Random = Random()) -> List["Pet"]:
+    if exclusion is None:
+        exclusion = []
+
+    picks = []
+    if require_living:
+        exclusion += [pet for pet in pets if pet.toughness <= 0]
+    while len(picks) < number and (len(picks) + len(exclusion)) < len(pets):
+        picks.append(random_gen.choice([pet for pet in pets if pet not in exclusion + picks]))
+
+    return picks
+
 
 @dataclass
 class Pet:
@@ -84,7 +118,7 @@ class Pet:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     temp_buff_power: int = 0
     temp_buff_toughness: int = 0
-    equipped_food: Optional[Food] = None
+    equipped_food: Optional[EquipableFood] = None
 
     def __repr__(self):
         return f"<{self.symbol}: {self.power} / {self.toughness} ({self.id[:3]})>"
@@ -96,9 +130,11 @@ class Pet:
         self.toughness = max(self.toughness, other.toughness) + 1
         self.experience += other.experience
 
-    def take_damage(self, damage: int):
-        # We could return e.g. None here, but we want the pet in case we want to do a faint trigger
+    def take_damage(self, damage: int) -> int:
+        """Have the pet take damage, considering e.g. food, and return the damage actually taken"""
+        damage = self.equipped_food.reduce_damage(damage) if self.equipped_food else damage
         self.toughness -= damage
+        return damage
 
     def buff(self, power: int = 0, toughness: int = 0):
         self.power += power
@@ -171,22 +207,12 @@ class Pet:
             triggers.append(Trigger(TriggerType.REMOVE_PET, self))
         return triggers
 
-    def pick_unique_pets(
-            self, pets: List["Pet"], number: int, exclusion: List["Pet"], require_living: bool = True) -> List["Pet"]:
-        picks = []
-        if require_living:
-            exclusion += [pet for pet in pets if pet.toughness <= 0]
-        while len(picks) < number and (len(picks) + len(exclusion)) < len(pets):
-            picks.append(self.random_gen.choice([pet for pet in pets if pet not in exclusion + picks]))
-
-        return picks
-
     def attack(self, other_team: List["Pet"]) -> List[Trigger]:
         """
         Take the pet, and attack the other team. This generates events that can then be resolved.
         """
-
-        pass
+        food_bonus = self.equipped_food.attack_bonus() if self.equipped_food else 0
+        return [Trigger(TriggerType.DEAL_DAMAGE, other_team[0], damage=self.power + food_bonus)]
 
 
 # Lives in pet to avoid circular imports. TODO: add a way to register triggers rather than inheritance?

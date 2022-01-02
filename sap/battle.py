@@ -79,10 +79,8 @@ class Battle:
         if team_1 and team_2:
             front_team_1 = team_1[0]
             front_team_2 = team_2[0]
-            self.event_queue.append(
-                (front_team_2, Trigger(TriggerType.DEAL_DAMAGE, front_team_1, damage=front_team_2.power)))
-            self.event_queue.append(
-                (front_team_1, Trigger(TriggerType.DEAL_DAMAGE, front_team_2, damage=front_team_1.power)))
+            self.event_queue.extend([(front_team_1, trigger) for trigger in front_team_1.attack(team_2)])
+            self.event_queue.extend([(front_team_2, trigger) for trigger in front_team_2.attack(team_1)])
             self.event_queue.apply_trigger(Trigger(TriggerType.AFTER_ATTACK, front_team_1))
             self.event_queue.apply_trigger(Trigger(TriggerType.AFTER_ATTACK, front_team_2))
             self.event_queue.resolve_events()

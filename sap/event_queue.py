@@ -1,6 +1,6 @@
 import logging
 from sap.pet import Trigger, TriggerType, Pet
-from typing import List
+from typing import Iterable, List
 import math
 from typing import Tuple, List
 
@@ -14,6 +14,9 @@ class EventQueue:
 
     def append(self, event: Event):
         self.event_queue.append(event)
+
+    def extend(self, events: Iterable[Event]):
+        self.event_queue.extend(events)
 
     @property
     def resolve_order(self) -> List[Pet]:

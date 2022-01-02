@@ -1,7 +1,7 @@
 from sap.pet_impl import *
+from sap.food_impl import *
 from sap.battle import Battle
 from test_helpers import dummy_pet, TestRandom, DummyPlayer
-import logging
 
 
 class TestPetImplBattle:
@@ -47,7 +47,6 @@ class TestPetImplBattle:
         b = Battle(
             [Dodo.spawn(), Cricket.spawn(), Hedgehog.spawn()],
             [Hedgehog.spawn(), Cricket.spawn()],
-            logging_level=logging.DEBUG
         )
         b.battle()
         assert b.team_1 == []
@@ -426,6 +425,26 @@ class TestPetImplBattle:
         b = Battle(
             [dummy_pet(1, 1), Snake.spawn(), Tiger.spawn()],
             [dummy_pet(power=6, toughness=1 + 5 + 5 + 6 + 4 + 1)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_honey(self):
+        b = Battle(
+            [Pet(symbol="P", power=1, toughness=1, equipped_food=Honey())],
+            [dummy_pet(power=1, toughness=3)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_meat_bone(self):
+        b = Battle(
+            [Pet(symbol="P", power=1, toughness=1, equipped_food=MeatBone())],
+            [dummy_pet(power=1, toughness=7)]
         )
         b.battle()
         assert b.team_1 == []
