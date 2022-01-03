@@ -71,7 +71,10 @@ class Food(ABC):
         return []
 
     @abstractmethod
-    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+    def apply(self, player: "Player", pet: Optional["Pet"] = None) -> List["Pet"]:
+        """
+        Apply the food, and return which pets were affected
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -91,15 +94,18 @@ class EatableFood(Food, ABC):
 class SingleEatableFood(EatableFood, ABC):
     def apply(self, player: "Player", pet: Optional["Pet"] = None):
         self.feed(pet)
+        return [pet]
 
 
 @dataclass
 class RandomEatableFood(EatableFood, ABC):
-    targets:int = 0
+    targets: int = 0
 
     def apply(self, player: "Player", pet: Optional["Pet"] = None):
-        for pet in pick_unique_pets(player.pets, self.targets):
+        pets = pick_unique_pets(player.pets, self.targets)
+        for pet in pets:
             self.feed(pet)
+        return pets
 
 
 class EquipableFood(Food):
@@ -107,6 +113,7 @@ class EquipableFood(Food):
         if pet is None:
             assert ValueError("Can't apply food to None pet")
         pet.equipped_food = self
+        return [pet]
 
     def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
         return [damage_trigger]
@@ -214,6 +221,9 @@ class Pet:
             self.experience = actual_experience
             return triggers  # don't run anything else, we want to run this as if the pet is a different level
 
+        # Do this before faint triggers, so we can e.g. summon without removing
+        triggers.extend(self._resolve_trigger(trigger, my_team, other_team))
+
         # Handle spawning flies
         if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
             summoned_pets = []
@@ -234,15 +244,15 @@ class Pet:
 
             if summoned_pets:
                 triggers.append(Trigger(TriggerType.SUMMON_PET, self, summoned_pets=summoned_pets))
-        return triggers + self._resolve_trigger(trigger, my_team, other_team)
+
+            # Do this last so the pet exists to be summoned off of
+            triggers.append(Trigger(TriggerType.REMOVE_PET, self))
+
+        return triggers
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
         Trigger]:
-        """Default trigger, handle faints"""
-        triggers = []
-        if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
-            triggers.append(Trigger(TriggerType.REMOVE_PET, self))
-        return triggers
+        return []
 
     def attack(self, other_team: List["Pet"]) -> List[Trigger]:
         """

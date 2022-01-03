@@ -20,7 +20,7 @@ class Ant(Pet):
             for pet in pick_unique_pets(my_team, 1, [self], random_gen=self.random_gen):
                 pet.buff(power=self.level * 2, toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Beaver(Pet):
@@ -36,7 +36,7 @@ class Beaver(Pet):
             for pet in pick_unique_pets(trigger.player.pets, 2, exclusion=[self], random_gen=self.random_gen):
                 pet.buff(toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Pig(Pet):
@@ -51,7 +51,7 @@ class Pig(Pet):
                 raise ValueError("Can't resolve sell events with no player")
             trigger.player.gold += self.level
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Otter(Pet):
@@ -67,7 +67,7 @@ class Otter(Pet):
             for pet in pick_unique_pets(trigger.player.pets, 1, [self], random_gen=self.random_gen):
                 pet.buff(power=self.level, toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Duck(Pet):
@@ -83,7 +83,7 @@ class Duck(Pet):
             for shop_pet in trigger.shop.pets:
                 shop_pet.pet.buff(toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Cricket(Pet):
@@ -110,7 +110,7 @@ class Horse(Pet):
             List[Trigger]:
         if trigger.type == TriggerType.PET_SUMMONED and trigger.pet in my_team and trigger.pet != self:
             trigger.pet.temp_buff(power=self.level)
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Fish(Pet):
@@ -124,7 +124,7 @@ class Fish(Pet):
             for pet in my_team:
                 if pet != self:
                     pet.buff(power=self.level - 1, toughness=self.level - 1)
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Mosquito(Pet):
@@ -139,7 +139,7 @@ class Mosquito(Pet):
             for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=self.level))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Crab(Pet):
@@ -149,13 +149,12 @@ class Crab(Pet):
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> \
             List[Trigger]:
-        triggers = []
         if trigger.type == TriggerType.PET_BOUGHT and trigger.pet == self:
             max_health = sorted([pet.toughness for pet in my_team if pet != self], reverse=True)
             if max_health:
                 self.toughness = max_health[0]
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Dodo(Pet):
@@ -165,13 +164,12 @@ class Dodo(Pet):
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> \
             List[Trigger]:
-        triggers = []
         if trigger.type == TriggerType.BATTLE_STARTED:
             position = my_team.index(self)
             if position > 0:
                 my_team[position - 1].buff(math.floor(self.power * 0.5 * self.level))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Elephant(Pet):
@@ -188,7 +186,7 @@ class Elephant(Pet):
             for pet in my_team[position + 1: position + self.level + 1]:
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=1))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Flamingo(Pet):
@@ -209,7 +207,7 @@ class Flamingo(Pet):
                 if pets_boosted == 2:
                     break
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Hedgehog(Pet):
@@ -224,7 +222,7 @@ class Hedgehog(Pet):
         if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
             triggers.append(Trigger(TriggerType.DEAL_DAMAGE_TO_ALL, self, damage=2 * self.level))
 
-        return super()._resolve_trigger(trigger, my_team, other_team) + triggers
+        return triggers
 
 
 class Peacock(Pet):
@@ -237,7 +235,7 @@ class Peacock(Pet):
         if trigger.type == TriggerType.PET_DAMAGED and trigger.pet == self:
             self.buff(power=self.level * 2)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Rat(Pet):
@@ -252,7 +250,7 @@ class Rat(Pet):
             triggers.append(
                 Trigger(TriggerType.SUMMON_PET_OTHER_TEAM, None, summoned_pets=[DirtyRat.create(self.experience)]))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Shrimp(Pet):
@@ -267,7 +265,7 @@ class Shrimp(Pet):
             for pet in pick_unique_pets(my_team, 1, [self], random_gen=self.random_gen):
                 pet.buff(toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Spider(Pet):
@@ -310,7 +308,7 @@ class Dog(Pet):
                 self.buff(power=self.level)
             else:
                 self.buff(toughness=self.level)
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Badger(Pet):
@@ -341,7 +339,7 @@ class Badger(Pet):
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=self.power))
                     break
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Blowfish(Pet):
@@ -356,7 +354,7 @@ class Blowfish(Pet):
             for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=self.level * 2))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Camel(Pet):
@@ -373,7 +371,7 @@ class Camel(Pet):
                     pet.buff(power=self.level, toughness=2 * self.level)
                     break
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Giraffe(Pet):
@@ -395,7 +393,7 @@ class Giraffe(Pet):
                     pets_buffed += 1
                 i -= 1
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Kangaroo(Pet):
@@ -410,7 +408,7 @@ class Kangaroo(Pet):
             if my_team.index(trigger.pet) == my_team.index(self) - 1:
                 self.buff(power=self.level * 2, toughness=self.level * 2)
 
-        return super()._resolve_trigger(trigger, my_team, other_team) + triggers
+        return []
 
 
 class Ox(Pet):
@@ -421,12 +419,12 @@ class Ox(Pet):
     def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
         Trigger]:
         triggers = []
-        if trigger.type == TriggerType.PET_FAINTED and trigger.pet in my_team:
+        if trigger.type == TriggerType.PET_FAINTED and trigger.pet in my_team and self in my_team:
             if my_team.index(trigger.pet) == my_team.index(self) - 1:
                 self.buff(power=2 * self.level)
                 self.equipped_food = Melon.spawn()
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Rabbit(Pet):
@@ -440,7 +438,7 @@ class Rabbit(Pet):
         if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet in my_team:
             trigger.pet.buff(toughness=self.level)
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Sheep(Pet):
@@ -475,7 +473,7 @@ class Snail(Pet):
                         continue
                     pet.buff(power=2 * self.level, toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Turtle(Pet):
@@ -490,10 +488,7 @@ class Turtle(Pet):
             if my_position != len(my_team) - 1:
                 my_team[my_position + 1].equipped_food = Melon.spawn()
 
-        # TODO: remove this super call, since it's unnessary! We always want to do these triggers before faint, and this
-        # could just be called before you put that trigger together.
-        # TODO: also, while we're at it, we can have this remove pets, and just have summon happen first.
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Whale(Pet):
@@ -545,7 +540,7 @@ class Bison(Pet):
             if level_three_in_team:
                 self.buff(power=self.level * 2, toughness=self.level * 2)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Deer(Pet):
@@ -580,11 +575,10 @@ class Worm(Pet):
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
         Trigger]:
-        triggers = []
         if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet == self:
             self.buff(power=self.level, toughness=self.level)
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Dolphin(Pet):
@@ -601,7 +595,7 @@ class Dolphin(Pet):
             if lowest_health_opponents:
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, lowest_health_opponents[0], damage=5 * self.level))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Hippo(Pet):
@@ -614,7 +608,7 @@ class Hippo(Pet):
         if trigger.type == TriggerType.PET_KNOCKED_OUT_BY and trigger.pet == self:
             self.buff(power=self.level * 2, toughness=self.level * 2)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Penguin(Pet):
@@ -624,13 +618,12 @@ class Penguin(Pet):
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> \
             List[Trigger]:
-        triggers = []
         if trigger.type == TriggerType.TURN_ENDED:
             for pet in my_team:
                 if pet != self and pet.level >= 2:
                     pet.buff(power=self.level, toughness=self.level)
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Rooster(Pet):
@@ -670,7 +663,7 @@ class Skunk(Pet):
                 triggers.append(
                     Trigger(TriggerType.REDUCE_HEALTH, highest_health_opponents[0], health_ratio=health_ratio))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Monkey(Pet):
@@ -683,7 +676,7 @@ class Monkey(Pet):
         if trigger.type == TriggerType.TURN_ENDED:
             my_team[0].buff(power=3 * self.level, toughness=3 * self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Cow(Pet):
@@ -698,7 +691,7 @@ class Cow(Pet):
                 Milk.create(power=self.level, toughness=2 * self.level),
                 Milk.create(power=self.level, toughness=2 * self.level)
             ])
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Crocodile(Pet):
@@ -715,7 +708,7 @@ class Crocodile(Pet):
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=8 * self.level))
                     break
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Rhino(Pet):
@@ -732,7 +725,7 @@ class Rhino(Pet):
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE_TO_FRONT, None, damage=self.level * 4, index=0))
                     break
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Scorpion(Pet):
@@ -748,12 +741,11 @@ class Seal(Pet):
 
     def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
         Trigger]:
-        triggers = []
         if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet == self:
             for pet in pick_unique_pets(my_team, 2, [self]):
                 pet.buff(power=self.level, toughness=self.level)
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Shark(Pet):
@@ -765,8 +757,7 @@ class Shark(Pet):
         Trigger]:
         if trigger.type == TriggerType.PET_FAINTED and trigger.pet in my_team and self.toughness > 0:
             self.buff(power=self.level * 2, toughness=self.level)
-
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Turkey(Pet):
@@ -778,7 +769,7 @@ class Turkey(Pet):
             List[Trigger]:
         if trigger.type == TriggerType.PET_SUMMONED and trigger.pet in my_team and trigger.pet != self:
             trigger.pet.buff(power=self.level * 3, toughness=self.level * 3)
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Boar(Pet):
@@ -791,7 +782,8 @@ class Boar(Pet):
         if trigger.type == TriggerType.BEFORE_ATTACK and trigger.pet == self:
             self.buff(power=2 * self.level, toughness=2 * self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
+
 
 class Cat(Pet):
     @classmethod
@@ -805,7 +797,8 @@ class Cat(Pet):
             if isinstance(trigger.food, EatableFood):
                 trigger.pet.buff(power=trigger.food.power * self.level, toughness=trigger.food.toughness * self.level)
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
+
 
 class Dragon(Pet):
     @classmethod
@@ -818,7 +811,7 @@ class Dragon(Pet):
             for pet in my_team:
                 pet.buff(power=self.level, toughness=self.level)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Gorilla(Pet):
@@ -840,7 +833,7 @@ class Gorilla(Pet):
             self.num_triggers = 0
             self.equipped_food = Coconut.create()
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Leopard(Pet):
@@ -855,7 +848,7 @@ class Leopard(Pet):
             for pet in pick_unique_pets(other_team, self.level, [], random_gen=self.random_gen):
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=math.floor(0.5 * self.power)))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Mammoth(Pet):
@@ -870,7 +863,7 @@ class Mammoth(Pet):
                 if pet.toughness > 0 and pet != self:
                     pet.buff(power=self.level * 2, toughness=self.level * 2)
 
-        return super()._resolve_trigger(trigger, my_team, other_team)
+        return []
 
 
 class Snake(Pet):
@@ -886,7 +879,7 @@ class Snake(Pet):
                 for pet in pick_unique_pets(other_team, 1, [], random_gen=self.random_gen):
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE, pet, damage=5 * self.level))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
 class Tiger(Pet):
@@ -913,22 +906,24 @@ class Tiger(Pet):
                     TriggerType.FORWARD_TRIGGER, None, forwarded_trigger=trigger, trigger_experience=self.experience),
                     my_team, other_team))
 
-        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+        return triggers
 
 
-class SummonedPet(Pet):
+class ZombieCricket(Pet):
     @classmethod
     def spawn(cls):
-        raise NotImplementedError("Should not ever spawn this without creating it manually")
+        return cls.create(power=1, toughness=1)
 
-
-class ZombieCricket(SummonedPet):
     @classmethod
     def create(cls, power: int, toughness: int):
         return cls(power=power, toughness=toughness, symbol="🧟🦗")
 
 
-class DirtyRat(SummonedPet):
+class DirtyRat(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create(experience=0)
+
     @classmethod
     def create(cls, experience: int):
         return cls(power=1, toughness=1, symbol="🦹🐀", experience=experience)
@@ -940,34 +935,54 @@ class DirtyRat(SummonedPet):
             if my_team.index(trigger.pet) == my_team.index(self) - 1:
                 triggers.append(Trigger(TriggerType.DEAL_DAMAGE, trigger.pet, damage=self.level))
 
-        return super()._resolve_trigger(trigger, my_team, other_team) + triggers
+        return triggers
 
 
-class Ram(SummonedPet):
+class Ram(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create(power=2, toughness=2)
+
     @classmethod
     def create(cls, power: int, toughness: int):
         return cls(power=power, toughness=toughness, symbol="🐏")
 
 
-class Chick(SummonedPet):
+class Chick(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create(power=1)
+
     @classmethod
     def create(cls, power: int):
         return cls(power=power, toughness=1, symbol="🐤")
 
 
-class ZombieFly(SummonedPet):
+class ZombieFly(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create(power=5, toughness=5)
+
     @classmethod
     def create(cls, power: int, toughness: int):
         return cls(power=power, toughness=toughness, symbol="🧟🪰")
 
 
-class Bee(SummonedPet):
+class Bee(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create()
+
     @classmethod
     def create(cls):
         return cls(power=1, toughness=1, symbol="🐝")
 
 
-class Bus(SummonedPet):
+class Bus(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls.create(power=5, toughness=5)
+
     @classmethod
     def create(cls, power: int, toughness: int):
         return cls(power=power, toughness=toughness, symbol="🚌", equipped_food=Chili.spawn())
@@ -1013,8 +1028,9 @@ class SleepingPill(Food):
     def spawn(cls):
         return cls(symbol="💊", cost=1)
 
-    def apply(self, player: "Player", pet: Optional["Pet"] = None):
-        player.apply_trigger(Trigger(TriggerType.FAINT_PET, pet))
+    def apply(self, player: "Player", pet: Optional["Pet"] = None) -> List[Pet]:
+        player.take_action(pet, Trigger(TriggerType.FAINT_PET, pet))
+        return [pet]
 
 
 class Garlic(EquipableFood):
@@ -1045,6 +1061,7 @@ class CannedFood(Food):
 
     def apply(self, player: "Player", pet: Optional["Pet"] = None):
         player.shop.buff(power=2, toughness=1)
+        return []
 
 
 class Chili(EquipableFood):
@@ -1055,6 +1072,7 @@ class Chili(EquipableFood):
     def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
         if len(other_team) > 1:
             return [damage_trigger, Trigger(TriggerType.DEAL_DAMAGE, other_team[1], damage=5)]
+        return [damage_trigger]
 
 
 class Chocolate(Food):
@@ -1062,8 +1080,9 @@ class Chocolate(Food):
     def spawn(cls):
         return cls(symbol="🍫", cost=3)
 
-    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+    def apply(self, player: "Player", pet: Optional["Pet"] = None) -> List[Pet]:
         player.add_experience(pet, 1)
+        return [pet]
 
 
 class Sushi(RandomEatableFood):
@@ -1112,7 +1131,6 @@ class Mushroom(EquipableFood):
         return [new_pet]
 
 
-@dataclass
 class Milk(SingleEatableFood):
     @classmethod
     def spawn(cls):

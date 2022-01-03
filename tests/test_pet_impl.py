@@ -40,3 +40,20 @@ class TestPetImpl:
         assert pets[2].toughness == 2
         assert pets[1].power == 2
         assert pets[2].power == 2
+
+    def test_cat(self):
+        pets = [dummy_pet(power=1, toughness=1), dummy_pet(power=1, toughness=1), Cat.spawn()]
+        player = DummyPlayer(pets=pets)
+        player._apply_food(Apple.spawn(), 0)
+        player._apply_food(Sushi.spawn(), 0)
+        assert pets[0].toughness == 5
+        assert pets[1].toughness == 3
+        assert pets[2].toughness == 7
+
+    def test_pilling_shrimp_with_bee(self):
+        shrimp = Shrimp.spawn()
+        shrimp.equipped_food = Honey.spawn()
+        player = DummyPlayer(pets=[shrimp])
+        player._apply_food(SleepingPill.spawn(), 0)
+        assert len(player.pets) == 1
+        assert type(player.pets[0]) == Bee

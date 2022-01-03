@@ -74,7 +74,6 @@ class Battle:
         self.event_queue.resolve_events()
 
         # TODO: see if we need a summon phase (https://github.com/manny405/sapai/blob/d388a0873ac9284832a699c5cdf36c9d8b1892f0/sapai/fight.py#L110)
-        # TODO: deal with case that before attack kills the front pet, e.g. Rhino
 
         if team_1 and team_2:
             front_team_1 = team_1[0]

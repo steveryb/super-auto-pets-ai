@@ -1,4 +1,4 @@
-from sap.pet import Pet, Food
+from sap.pet import Pet, Food, EquipableFood
 from sap.shop import ShopGenerator, Shop, TierShopGenerator
 from sap.player import Player
 from copy import deepcopy
@@ -8,8 +8,8 @@ from typing import List, Sequence, TypeVar, Optional
 from random import Random
 
 
-def dummy_pet(symbol="T", power=1, toughness=2, experience=0):
-    return Pet(symbol=symbol, power=power, toughness=toughness, experience=experience)
+def dummy_pet(symbol="T", power=1, toughness=2, experience=0, equipped_food:Optional[EquipableFood] = None):
+    return Pet(symbol=symbol, power=power, toughness=toughness, experience=experience, equipped_food=equipped_food)
 
 
 def create_pets(num: int):

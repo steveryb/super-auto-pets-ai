@@ -71,7 +71,6 @@ class EventQueue:
                         my_team.insert(index, summoned_pet)
                         self.apply_trigger(Trigger(TriggerType.PET_SUMMONED, summoned_pet))
                         live_team_members += 1
-                self.event_queue.append((triggered_pet, Trigger(TriggerType.REMOVE_PET, trigger.pet)))
             elif trigger.type is TriggerType.DEAL_DAMAGE or trigger.type is TriggerType.DEAL_POISON_DAMAGE:
                 self.deal_damage(
                     pet=trigger.pet,
@@ -95,8 +94,10 @@ class EventQueue:
                         other_team.append(pet)
 
             elif trigger.type is TriggerType.FAINT_PET:
-                # needed for whale
+                # needed for whale and pill
                 logging.debug(f"Fainting pet {trigger.pet}")
+                # We want to set its toughness to 0, so it's ignored for e.g. damage
+                trigger.pet.toughness = 0
                 self.apply_trigger(Trigger(TriggerType.PET_FAINTED, trigger.pet))
 
             elif trigger.type is TriggerType.REDUCE_HEALTH:

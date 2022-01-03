@@ -7,6 +7,8 @@ from sap.event_queue import EventQueue
 from sap.pet import Pet, Trigger, TriggerType, Food
 from sap.shop import Shop
 
+import logging
+
 PET_COST = 3
 REROLL_COST = 1
 
@@ -113,11 +115,13 @@ class Player(ABC):
         return self.pets
 
     def _apply_food(self, food: Food, target_position:int):
-        food.apply(self, self.pets[target_position])
-        self.apply_trigger(Trigger(TriggerType.PET_EATEN_SHOP_FOOD, self.pets[target_position], food=food))
+        pets_who_ate = food.apply(self, self.pets[target_position])
+        for pet in pets_who_ate:
+            self.apply_trigger(Trigger(TriggerType.PET_EATEN_SHOP_FOOD, pet, food=food))
 
 
     def buy_and_apply_food(self, shop_position: int, target_position: int):
+        logging.debug(f"Buying food {self.shop.food[shop_position]} {self.pets[target_position]}")
         if self.gold < self.shop.food[shop_position].food.cost:
             raise ValueError("Not enough gold to buy food", self)
         food = self.shop.buy_food(shop_position)
@@ -183,6 +187,12 @@ class Player(ABC):
         self.remove_pet(position)
         self.gold += 1
         return sold_pet
+
+    def take_action(self, pet: Pet, trigger: Trigger):
+        """Apply a trigger to one pets, and resolve the action queue that results"""
+        event_queue = EventQueue(team_1=self.pets, team_2=[])
+        event_queue.append((pet, trigger))
+        event_queue.resolve_events()
 
     def apply_trigger(self, trigger: Trigger):
         """Apply a trigger to all pets, and resolve the action queue"""
