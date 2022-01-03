@@ -1,25 +1,23 @@
 from player import Player, RealPlayer, RandomPlayer
-from shop import ShopGenerator, Shop, RandomShopGenerator, TierShopGenerator
+from shop import ShopGenerator, Shop, TierShopGenerator
 from battle import Battle, Result
 from random import Random
 from pet import Pet
-from pet_impl import PET_TIERS
+from pet_impl import PET_TIERS, FOOD_TIERS
 
 from typing import List, Tuple, Optional
 import logging
 
 class Game:
-    def __init__(self, shop_generator: ShopGenerator, player_1: Player, player_2: Player):
+    def __init__(self, player_1: Player, player_2: Player):
         self.player_1 = player_1
         self.player_2 = player_2
-        self.player_1_shop = Shop(shop_generator)
-        self.player_2_shop = Shop(shop_generator)
         self.round = 0
 
 
     def buy_phase(self) -> Tuple[List[Pet], List[Pet]]:
-        self.player_1.perform_buys(self.player_1_shop, self.round)
-        self.player_2.perform_buys(self.player_2_shop, self.round)
+        self.player_1.perform_buys(self.round)
+        self.player_2.perform_buys(self.round)
         return self.player_1.pets, self.player_2.pets
 
     def battle_phase(self) -> Result:
@@ -56,13 +54,13 @@ class Game:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.DEBUG)
     random_gen = Random()
-    for i in range(1000):
+    shop_generator = TierShopGenerator(PET_TIERS, FOOD_TIERS)
+    for i in range(1):
         game = Game(
-            TierShopGenerator(PET_TIERS),
-            # RealPlayer(),
-            RandomPlayer(random_gen),
-            RandomPlayer(random_gen),
+            # RealPlayer(Shop(shop_generator)),
+            RandomPlayer(Shop(shop_generator), random_gen),
+            RandomPlayer(Shop(shop_generator), random_gen),
         )
         game.play_game()

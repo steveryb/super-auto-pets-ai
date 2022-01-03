@@ -107,9 +107,12 @@ class Battle:
 if __name__ == "__main__":
     from pet_impl import *
     from tests.test_helpers import dummy_pet
+    logging.basicConfig(level=logging.DEBUG)
 
     b = Battle(
-        [dummy_pet("a", 1, 1)],
-        [dummy_pet("b", 1, 1)],
+        [Scorpion.spawn(), Scorpion.spawn(), Scorpion.spawn()],
+        [Pet(symbol="P", toughness=100, power=100, equipped_food=Garlic.spawn()),  # garlic reduces to 1, so dies
+         Pet(symbol="P", toughness=100, power=100, equipped_food=Melon.spawn())  # should take a hit though
+         ]
     )
     b.battle()

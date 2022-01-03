@@ -27,14 +27,14 @@ class TestPlayer:
         player.start_turn()
         shop = create_shop(5, 5)
         pet_1 = shop.pets[1]
-        assert player.buy(shop, 1, 0) == [pet_1]
+        assert player.buy_pet(shop, 1, 0) == [pet_1]
         assert len(shop.pets) == 4
 
     def test_buy_no_gold(self):
         player = DummyPlayer()
         shop = create_shop(5, 5)
         with pytest.raises(ValueError):
-            player.buy(shop, 1, 0)
+            player.buy_pet(shop, 1, 0)
 
     def test_condense(self):
         pet_1 = dummy_pet()

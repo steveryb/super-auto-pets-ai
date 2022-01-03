@@ -32,7 +32,7 @@ class EventQueue:
             if pet in self.team_1 + self.team_2:
                 self.event_queue.append((pet, trigger))
 
-    def deal_damage(self, pet: Pet, damage: int, triggered_pet: Pet):
+    def deal_damage(self, pet: Pet, damage: int, triggered_pet: Pet, poison:bool=False):
         logging.debug(f"Dealing damage {pet} {damage}")
         if pet.toughness <= 0:
             logging.debug(f"Skipping damage {pet} {damage} since it's < 0")
@@ -40,10 +40,9 @@ class EventQueue:
         elif damage == 0:
             logging.debug(f"Damage is 0 for {pet}, so skipping")
             return
-        else:
-            pet.take_damage(damage)
 
-        if pet.toughness <= 0:
+        damage_taken = pet.take_damage(damage)
+        if (damage_taken and poison) or pet.toughness <= 0:
             self.apply_trigger(Trigger(TriggerType.PET_FAINTED, pet))
             if triggered_pet.toughness > 0:
                 self.apply_trigger(Trigger(TriggerType.PET_KNOCKED_OUT_BY, triggered_pet))
@@ -73,8 +72,12 @@ class EventQueue:
                         self.apply_trigger(Trigger(TriggerType.PET_SUMMONED, summoned_pet))
                         live_team_members += 1
                 self.event_queue.append((triggered_pet, Trigger(TriggerType.REMOVE_PET, trigger.pet)))
-            elif trigger.type is TriggerType.DEAL_DAMAGE:
-                self.deal_damage(trigger.pet, trigger.damage, triggered_pet)
+            elif trigger.type is TriggerType.DEAL_DAMAGE or trigger.type is TriggerType.DEAL_POISON_DAMAGE:
+                self.deal_damage(
+                    pet=trigger.pet,
+                    damage=trigger.damage,
+                    triggered_pet=triggered_pet,
+                    poison=trigger.type == TriggerType.DEAL_POISON_DAMAGE)
             elif trigger.type is TriggerType.DEAL_DAMAGE_TO_ALL:
                 logging.debug(f"Dealing damage to all pets: {trigger.damage}")
                 for pet in my_team + other_team:

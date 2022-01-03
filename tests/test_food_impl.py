@@ -1,6 +1,7 @@
-from sap.player import Player
-from sap.food_impl import *
-from test_helpers import DummyPlayer, dummy_pet
+from sap.pet_impl import *
+from sap.shop import Shop
+from test_helpers import DummyPlayer, dummy_pet, StubShopGenerator
+
 
 class TestFoodImpl:
     def apply_food(self, food, pet=None, player=None) -> Tuple[Player, Pet]:
@@ -13,11 +14,11 @@ class TestFoodImpl:
         return player, pet
 
     def test_sleeping_pill(self):
-        player, pet = self.apply_food(SleepingPill())
+        player, _ = self.apply_food(SleepingPill.spawn())
         assert player.pets == []
 
     def test_garlic(self):
-        player, pet = self.apply_food(Garlic(), pet=dummy_pet(power=1, toughness=5))
+        _, pet = self.apply_food(Garlic.spawn(), pet=dummy_pet(power=1, toughness=5))
         pet.take_damage(1)
         assert pet.toughness == 4
         pet.take_damage(2)
@@ -28,6 +29,30 @@ class TestFoodImpl:
         assert pet.toughness == 0
 
     def test_salad_bowl(self):
-        player, pet = self.apply_food(SaladBowl())
+        _, pet = self.apply_food(SaladBowl.spawn())
         assert pet.power == 2
         assert pet.toughness == 2
+
+    def test_canned_food(self):
+        player, _ = self.apply_food(
+            player=DummyPlayer(shop=Shop(StubShopGenerator([dummy_pet(power=1, toughness=1) for _ in range(6)]))),
+            food=CannedFood.spawn())
+
+        player.start_turn(1)
+        for shop_pet in player.shop.pets:
+            assert shop_pet.pet.toughness == 2
+            assert shop_pet.pet.power == 3
+
+        player.reroll()
+
+        for shop_pet in player.shop.pets:
+            assert shop_pet.pet.toughness == 2
+            assert shop_pet.pet.power == 3
+
+    def test_chocolate(self):
+        player = DummyPlayer(pets=[Fish.spawn(), Fish.spawn()])
+        Chocolate.spawn().apply(player, player.pets[0])
+        Chocolate.spawn().apply(player, player.pets[0])
+        assert player.pets[0].experience == 2
+        assert player.pets[0].toughness == 3 + 2
+        assert player.pets[1].toughness == 3 + 1

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace, field
+from dataclasses import dataclass, field
 
 from enum import Enum, auto
 from typing import List, Tuple, Optional
@@ -18,9 +18,10 @@ class TriggerType(Enum):
     PET_LEVELED_UP = auto()
     PET_DAMAGED = auto()
     PET_KNOCKED_OUT_BY = auto()
-    PET_EATEN = auto()
+    PET_EATEN_SHOP_FOOD = auto()
 
     # LIFECYCLE TRIGGERS
+    TURN_STARTED = auto()
     TURN_ENDED = auto()
     BATTLE_STARTED = auto()
     BEFORE_ATTACK = auto()
@@ -32,6 +33,7 @@ class TriggerType(Enum):
     DEAL_DAMAGE = auto()
     DEAL_DAMAGE_TO_ALL = auto()  # hedgehog
     DEAL_DAMAGE_TO_FRONT = auto()  # rhino
+    DEAL_POISON_DAMAGE = auto()  # scorpion
     SUMMON_PET_OTHER_TEAM = auto()
     FAINT_PET = auto()
     REDUCE_HEALTH = auto()
@@ -55,20 +57,49 @@ class Trigger:
 
 @dataclass
 class Food(ABC):
+    symbol: str
+    cost: int
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    cost: int = 3
     random_gen: Random = Random()
+    power: int = 0
+    toughness: int = 0
 
-    def feed(self, pet: "Pet", player: "Player"):
-        self.apply(pet, player)
-        player.apply_trigger(Trigger(TriggerType.PET_EATEN, pet, food=self))
+    def __repr__(self):
+        return f"<{self.symbol} ({self.id[:3]})>"
 
-    def summoned_pets(self) -> List["Pet"]:
+    def summoned_pets(self, pet: "Pet") -> List["Pet"]:
         return []
 
     @abstractmethod
     def apply(self, player: "Player", pet: Optional["Pet"] = None):
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def spawn(cls):
+        raise NotImplementedError
+
+
+class EatableFood(Food, ABC):
+    power: int = 0
+    toughness: int = 0
+
+    def feed(self, pet: "Pet"):
+        pet.buff(power=self.power, toughness=self.toughness)
+
+
+class SingleEatableFood(EatableFood, ABC):
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        self.feed(pet)
+
+
+@dataclass
+class RandomEatableFood(EatableFood, ABC):
+    targets:int = 0
+
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        for pet in pick_unique_pets(player.pets, self.targets):
+            self.feed(pet)
 
 
 class EquipableFood(Food):
@@ -77,17 +108,11 @@ class EquipableFood(Food):
             assert ValueError("Can't apply food to None pet")
         pet.equipped_food = self
 
-    def after_attack(self, pet: "Pet"):
-        pass
+    def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
+        return [damage_trigger]
 
-    def attack_bonus(self) -> int:
-        return 0
-
-    def reduce_damage(self, damage: int) -> int:
+    def reduce_damage(self, pet: Optional["Pet"], damage: int) -> int:
         return damage
-
-    def after_damage(self):
-        pass
 
 
 def pick_unique_pets(
@@ -115,13 +140,18 @@ class Pet:
     toughness: int
     experience: int = 0
     random_gen: Random = Random()
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = field(default_factory=lambda: Pet.generate_id())
     temp_buff_power: int = 0
     temp_buff_toughness: int = 0
     equipped_food: Optional[EquipableFood] = None
 
+    @staticmethod
+    def generate_id() -> str:
+        return str(uuid.uuid4())
+
     def __repr__(self):
-        return f"<{self.symbol}: {self.power} / {self.toughness} ({self.id[:3]})>"
+        food_str = str(self.equipped_food) if self.equipped_food else ""
+        return f"<{self.symbol}{food_str}: {self.power} / {self.toughness}  ({self.id[:3]})>"
 
     def combine(self, other: "Pet"):
         if other.symbol != self.symbol:
@@ -129,10 +159,16 @@ class Pet:
         self.power = max(self.power, other.power) + 1
         self.toughness = max(self.toughness, other.toughness) + 1
         self.experience += other.experience
+        if other.equipped_food:
+            self.equipped_food = other.equipped_food
+
+    def add_experience(self, experience: int):
+        self.buff(power=experience, toughness=experience)
+        self.experience += experience
 
     def take_damage(self, damage: int) -> int:
         """Have the pet take damage, considering e.g. food, and return the damage actually taken"""
-        damage = self.equipped_food.reduce_damage(damage) if self.equipped_food else damage
+        damage = self.equipped_food.reduce_damage(self, damage) if self.equipped_food else damage
         self.toughness -= damage
         return damage
 
@@ -147,6 +183,7 @@ class Pet:
         self.power += power
         self.toughness += toughness
 
+    # TODO: remove this and replace with a trigger. Or the other way around? Probably other way around.
     def start_turn(self, player: "Player"):
         """Reset pet after battle, removing e.g. temp bonuses"""
         # Since this modifies the power directly, we can just reuse it to reset the bonuses
@@ -193,7 +230,7 @@ class Pet:
 
             # Food triggers
             if self.equipped_food:
-                summoned_pets.extend(self.equipped_food.summoned_pets())
+                summoned_pets.extend(self.equipped_food.summoned_pets(self))
 
             if summoned_pets:
                 triggers.append(Trigger(TriggerType.SUMMON_PET, self, summoned_pets=summoned_pets))
@@ -211,8 +248,12 @@ class Pet:
         """
         Take the pet, and attack the other team. This generates events that can then be resolved.
         """
-        food_bonus = self.equipped_food.attack_bonus() if self.equipped_food else 0
-        return [Trigger(TriggerType.DEAL_DAMAGE, other_team[0], damage=self.power + food_bonus)]
+        damage_trigger = Trigger(TriggerType.DEAL_DAMAGE, other_team[0], damage=self.power)
+        triggers = [damage_trigger]
+        if self.equipped_food:
+            triggers = self.equipped_food.enhance_attack(self, other_team, damage_trigger)
+
+        return triggers
 
 
 # Lives in pet to avoid circular imports. TODO: add a way to register triggers rather than inheritance?

@@ -1,13 +1,11 @@
-from sap.pet import Pet, Trigger, TriggerType, Fly, pick_unique_pets
-from dataclasses import replace
-from sap.player import Player
-from sap.shop import Shop
-from abc import ABC, abstractmethod
 import math
 from operator import attrgetter
-
 from typing import List, Optional, Type, Tuple
-import logging
+
+from sap.pet import Pet, Food, EquipableFood, Trigger, TriggerType, pick_unique_pets, Fly, SingleEatableFood, \
+    RandomEatableFood, EatableFood
+from sap.player import Player
+from dataclasses import dataclass, field
 
 
 class Ant(Pet):
@@ -125,7 +123,7 @@ class Fish(Pet):
         if trigger.type == TriggerType.PET_LEVELED_UP and trigger.pet == self:
             for pet in my_team:
                 if pet != self:
-                    pet.buff(power=self.level, toughness=self.level)
+                    pet.buff(power=self.level - 1, toughness=self.level - 1)
         return super()._resolve_trigger(trigger, my_team, other_team)
 
 
@@ -415,6 +413,36 @@ class Kangaroo(Pet):
         return super()._resolve_trigger(trigger, my_team, other_team) + triggers
 
 
+class Ox(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=1, toughness=4, symbol="🐂")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_FAINTED and trigger.pet in my_team:
+            if my_team.index(trigger.pet) == my_team.index(self) - 1:
+                self.buff(power=2 * self.level)
+                self.equipped_food = Melon.spawn()
+
+        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+
+
+class Rabbit(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=3, toughness=2, symbol="🐇")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet in my_team:
+            trigger.pet.buff(toughness=self.level)
+
+        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+
+
 class Sheep(Pet):
     @classmethod
     def spawn(cls):
@@ -447,6 +475,24 @@ class Snail(Pet):
                         continue
                     pet.buff(power=2 * self.level, toughness=self.level)
 
+        return super()._resolve_trigger(trigger, my_team, other_team)
+
+
+class Turtle(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=1, toughness=2, symbol="🐢")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> List[
+        Trigger]:
+        if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
+            my_position = my_team.index(self)
+            if my_position != len(my_team) - 1:
+                my_team[my_position + 1].equipped_food = Melon.spawn()
+
+        # TODO: remove this super call, since it's unnessary! We always want to do these triggers before faint, and this
+        # could just be called before you put that trigger together.
+        # TODO: also, while we're at it, we can have this remove pets, and just have summon happen first.
         return super()._resolve_trigger(trigger, my_team, other_team)
 
 
@@ -500,6 +546,45 @@ class Bison(Pet):
                 self.buff(power=self.level * 2, toughness=self.level * 2)
 
         return super()._resolve_trigger(trigger, my_team, other_team)
+
+
+class Deer(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=1, toughness=1, symbol="🦌")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_FAINTED and trigger.pet == self:
+            triggers.append(Trigger(TriggerType.SUMMON_PET, self,
+                                    [Bus.create(power=5 * self.level, toughness=5 * self.level)]))
+
+        return triggers  # no removal, as summoning replaces
+
+
+class Squirrel(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=2, toughness=2, symbol="🐿️")
+
+    def start_turn(self, player: "Player"):
+        for shop_food in player.shop.food:
+            shop_food.food.cost = max(0, shop_food.food.cost - self.level)
+
+
+class Worm(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=2, toughness=2, symbol="🪱")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet == self:
+            self.buff(power=self.level, toughness=self.level)
+
+        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
 
 
 class Dolphin(Pet):
@@ -601,6 +686,21 @@ class Monkey(Pet):
         return super()._resolve_trigger(trigger, my_team, other_team)
 
 
+class Cow(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=4, toughness=6, symbol="🐄")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> \
+            List[Trigger]:
+        if trigger.type == TriggerType.PET_BOUGHT and trigger.pet == self:
+            trigger.player.shop.replace_shop([
+                Milk.create(power=self.level, toughness=2 * self.level),
+                Milk.create(power=self.level, toughness=2 * self.level)
+            ])
+        return super()._resolve_trigger(trigger, my_team, other_team)
+
+
 class Crocodile(Pet):
     @classmethod
     def spawn(cls):
@@ -631,6 +731,27 @@ class Rhino(Pet):
                 if pet.toughness > 0:
                     triggers.append(Trigger(TriggerType.DEAL_DAMAGE_TO_FRONT, None, damage=self.level * 4, index=0))
                     break
+
+        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
+
+
+class Scorpion(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=1, toughness=1, symbol="🦂", equipped_food=Peanut.create())
+
+
+class Seal(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=3, toughness=8, symbol="🦭")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet == self:
+            for pet in pick_unique_pets(my_team, 2, [self]):
+                pet.buff(power=self.level, toughness=self.level)
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)
 
@@ -672,6 +793,19 @@ class Boar(Pet):
 
         return super()._resolve_trigger(trigger, my_team, other_team)
 
+class Cat(Pet):
+    @classmethod
+    def spawn(cls):
+        return cls(power=4, toughness=5, symbol="🐱")
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
+        Trigger]:
+        triggers = []
+        if trigger.type == TriggerType.PET_EATEN_SHOP_FOOD and trigger.pet in my_team:
+            if isinstance(trigger.food, EatableFood):
+                trigger.pet.buff(power=trigger.food.power * self.level, toughness=trigger.food.toughness * self.level)
+
+        return triggers + super()._resolve_trigger(trigger, my_team, other_team)
 
 class Dragon(Pet):
     @classmethod
@@ -683,6 +817,28 @@ class Dragon(Pet):
         if trigger.type == TriggerType.PET_BOUGHT and type(trigger.pet) in PET_TIERS[0]:
             for pet in my_team:
                 pet.buff(power=self.level, toughness=self.level)
+
+        return super()._resolve_trigger(trigger, my_team, other_team)
+
+
+class Gorilla(Pet):
+    num_triggers: int = 1
+
+    @classmethod
+    def spawn(cls):
+        return cls(power=6, toughness=9, symbol="🦍")
+
+    def start_turn(self, player: "Player"):
+        super().start_turn(player)
+        self.num_triggers = 1
+
+    def _resolve_trigger(self, trigger: Trigger, my_team: List[Pet], other_team: List[Pet]) -> List[
+        Trigger]:
+        if trigger.type == TriggerType.TURN_ENDED:
+            self.num_triggers = 1
+        elif trigger.type == TriggerType.PET_DAMAGED and trigger.pet == self and self.num_triggers:
+            self.num_triggers = 0
+            self.equipped_food = Coconut.create()
 
         return super()._resolve_trigger(trigger, my_team, other_team)
 
@@ -755,12 +911,12 @@ class Tiger(Pet):
             if in_front_pet.toughness > 0:
                 triggers.extend(in_front_pet.apply_trigger(Trigger(
                     TriggerType.FORWARD_TRIGGER, None, forwarded_trigger=trigger, trigger_experience=self.experience),
-                my_team, other_team))
+                    my_team, other_team))
 
         return triggers + super()._resolve_trigger(trigger, my_team, other_team)
 
 
-class SummonedPet(Pet, ABC):
+class SummonedPet(Pet):
     @classmethod
     def spawn(cls):
         raise NotImplementedError("Should not ever spawn this without creating it manually")
@@ -804,17 +960,212 @@ class ZombieFly(SummonedPet):
     def create(cls, power: int, toughness: int):
         return cls(power=power, toughness=toughness, symbol="🧟🪰")
 
+
 class Bee(SummonedPet):
     @classmethod
     def create(cls):
         return cls(power=1, toughness=1, symbol="🐝")
 
 
+class Bus(SummonedPet):
+    @classmethod
+    def create(cls, power: int, toughness: int):
+        return cls(power=power, toughness=toughness, symbol="🚌", equipped_food=Chili.spawn())
+
+
+# Food
+class Apple(SingleEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍎", cost=3, power=1, toughness=1)
+
+
+class Cupcake(SingleEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🧁", cost=3, power=3, toughness=3)
+
+    def feed(self, pet: "Pet"):
+        pet.temp_buff(power=3, toughness=3)
+
+
+class Honey(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍯", cost=3)
+
+    def summoned_pets(self, pet: "Pet") -> List["Pet"]:
+        return [Bee.create()]
+
+
+class MeatBone(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍖", cost=3)
+
+    def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
+        damage_trigger.damage += 5
+        return [damage_trigger]
+
+
+class SleepingPill(Food):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="💊", cost=1)
+
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        player.apply_trigger(Trigger(TriggerType.FAINT_PET, pet))
+
+
+class Garlic(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🧄", cost=3)
+
+    def reduce_damage(self, pet: Optional["Pet"], damage: int) -> int:
+        return max(1, damage - 2)  # always take at least one damage, sadly
+
+
+class SaladBowl(RandomEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🥗", cost=3, power=1, toughness=1, targets=2)
+
+
+class Pear(SingleEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍐", cost=3, power=2, toughness=2)
+
+
+class CannedFood(Food):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🥫", cost=3)
+
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        player.shop.buff(power=2, toughness=1)
+
+
+class Chili(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🌶️", cost=3)
+
+    def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
+        if len(other_team) > 1:
+            return [damage_trigger, Trigger(TriggerType.DEAL_DAMAGE, other_team[1], damage=5)]
+
+
+class Chocolate(Food):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍫", cost=3)
+
+    def apply(self, player: "Player", pet: Optional["Pet"] = None):
+        player.add_experience(pet, 1)
+
+
+class Sushi(RandomEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍣", cost=3, power=1, toughness=1, targets=3)
+
+
+class Melon(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍈", cost=3)
+
+    def reduce_damage(self, pet: Optional["Pet"], damage: int) -> int:
+        pet.equipped_food = None
+        return max(0, damage - 20)
+
+
+class Pizza(RandomEatableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍕", cost=3, targets=2, power=2, toughness=2)
+
+
+class Steak(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🥩", cost=3)
+
+    def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
+        damage_trigger.damage += 20
+        pet.equipped_food = None
+        return [damage_trigger]
+
+
+class Mushroom(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        return cls(symbol="🍄", cost=3)
+
+    def summoned_pets(self, pet: Pet) -> List["Pet"]:
+        new_pet = pet.__class__.spawn()
+        new_pet.power = 1
+        new_pet.toughness = 1
+        new_pet.experience = pet.experience
+        return [new_pet]
+
+
+@dataclass
+class Milk(SingleEatableFood):
+    @classmethod
+    def spawn(cls):
+        raise NotImplementedError("Cannot spawn milk without specifying how powerful it is")
+
+    @classmethod
+    def create(cls, power: int, toughness: int):
+        return cls(symbol="🥛", cost=0, power=power, toughness=toughness)
+
+
+class Peanut(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        raise NotImplementedError("Cannot spawn milk without specifying how powerful it is")
+
+    @classmethod
+    def create(cls):
+        return cls(symbol="🥜", cost=0)
+
+    def enhance_attack(self, pet: "Pet", other_team: List["Pet"], damage_trigger: Trigger) -> List[Trigger]:
+        return [
+            Trigger(TriggerType.DEAL_POISON_DAMAGE, damage_trigger.pet, damage=damage_trigger.damage)
+        ]
+
+
+class Coconut(EquipableFood):
+    @classmethod
+    def spawn(cls):
+        raise NotImplementedError("Cannot spawn milk without specifying how powerful it is")
+
+    @classmethod
+    def create(cls):
+        return cls(symbol="🥥", cost=0)
+
+    def reduce_damage(self, pet: Optional["Pet"], damage: int) -> int:
+        pet.equipped_food = None
+        return 0
+
+
+FOOD_TIERS: Tuple[Tuple[Type[Food], ...], ...] = (
+    (Apple, Honey),
+    (Cupcake, MeatBone, SleepingPill),
+    (Garlic, SaladBowl),
+    (CannedFood, Pear),
+    (Chili, Chocolate, Sushi),
+    (Melon, Pizza, Steak, Mushroom)
+)
+
 PET_TIERS: Tuple[Tuple[Type[Pet], ...], ...] = (
     (Ant, Beaver, Cricket, Duck, Fish, Horse, Mosquito, Otter, Pig),
     (Crab, Dodo, Elephant, Flamingo, Hedgehog, Peacock, Rat, Shrimp, Spider, Swan),
-    (Dog, Badger, Blowfish, Camel, Giraffe, Kangaroo, Sheep),  # TODO: ox, rabbit, turtle (food)
-    (Whale, Bison, Dolphin, Hippo, Penguin, Rooster, Skunk),  # TODO: deer, squirrel, worm (food)
-    (Monkey, Crocodile, Rhino, Shark, Turkey),  # TODO: cow, scorpion, seal (food)
-    (Boar, Dragon, Fly, Leopard, Mammoth, Snake, Tiger)  # TODO: cat, gorilla, (food)
+    (Dog, Badger, Blowfish, Camel, Giraffe, Kangaroo, Ox, Rabbit, Sheep),
+    (Whale, Bison, Deer, Dolphin, Hippo, Penguin, Rooster, Skunk, Squirrel, Worm),
+    (Monkey, Cow, Crocodile, Rhino, Scorpion, Seal, Shark, Turkey),
+    (Boar, Cat, Dragon, Gorilla, Fly, Leopard, Mammoth, Snake, Tiger)  # TODO: cat, (food)
 )

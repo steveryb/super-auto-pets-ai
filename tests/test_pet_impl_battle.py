@@ -1,5 +1,4 @@
 from sap.pet_impl import *
-from sap.food_impl import *
 from sap.battle import Battle
 from test_helpers import dummy_pet, TestRandom, DummyPlayer
 
@@ -433,7 +432,7 @@ class TestPetImplBattle:
 
     def test_honey(self):
         b = Battle(
-            [Pet(symbol="P", power=1, toughness=1, equipped_food=Honey())],
+            [Pet(symbol="P", power=1, toughness=1, equipped_food=Honey.spawn())],
             [dummy_pet(power=1, toughness=3)]
         )
         b.battle()
@@ -443,8 +442,92 @@ class TestPetImplBattle:
 
     def test_meat_bone(self):
         b = Battle(
-            [Pet(symbol="P", power=1, toughness=1, equipped_food=MeatBone())],
+            [Pet(symbol="P", power=1, toughness=1, equipped_food=MeatBone.spawn())],
             [dummy_pet(power=1, toughness=7)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_chilli(self):
+        b = Battle(
+            [Pet(symbol="P", power=1, toughness=1, equipped_food=Chili.spawn())],
+            [dummy_pet(power=1, toughness=2), dummy_pet(power=100, toughness=5)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_melon(self):
+        b = Battle(
+            [Pet(symbol="P", power=1, toughness=2, equipped_food=Melon.spawn())],
+            [dummy_pet(power=21, toughness=1), dummy_pet(power=2, toughness=2)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_mushroom(self):
+        cricket = Cricket.spawn()
+        cricket.equipped_food = Mushroom.spawn()
+        b = Battle(
+            [cricket],
+            [dummy_pet(power=2, toughness=1+1+1+1+1)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_ox(self):
+        b = Battle(
+            [Cricket.spawn(), Ox.spawn()],
+            [dummy_pet(power=20, toughness=1+1+5+5+1)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_turtle(self):
+        b = Battle(
+            [Turtle.spawn(), dummy_pet(power=1, toughness=1)],
+            [dummy_pet(power=20, toughness=1+1+1+1)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+
+    def test_deer(self):
+        b = Battle(
+            [Deer.spawn()],
+            [dummy_pet(toughness=2, power=5),dummy_pet(power=100, toughness=5), dummy_pet(power=100, toughness=1)]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert len(b.team_2) == 1
+        assert b.team_2[0].toughness == 1
+        # TODO: test tiger whale
+
+    def test_scorpion(self):
+        b = Battle(
+            [Scorpion.spawn(), Scorpion.spawn(), Scorpion.spawn()],
+            [Pet(symbol="P", toughness=100, power=100, equipped_food=Garlic.spawn()), # garlic reduces to 1, so dies
+             Pet(symbol="P", toughness=100, power=100, equipped_food=Melon.spawn()) # should take a hit though
+             ]
+        )
+        b.battle()
+        assert b.team_1 == []
+        assert b.team_2 == []
+
+    def test_gorilla(self):
+        b = Battle(
+            [Gorilla.spawn()],
+            [dummy_pet(power=8, toughness=6), dummy_pet(power=100, toughness=6), dummy_pet(power=1, toughness=7)]
         )
         b.battle()
         assert b.team_1 == []
