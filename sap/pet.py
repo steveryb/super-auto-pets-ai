@@ -211,6 +211,10 @@ class Pet:
     def apply_trigger(self, trigger: Trigger, my_team: List["Pet"], other_team: Optional[List["Pet"]]) -> List[
         Trigger]:
 
+        if self not in my_team:
+            # Pet has been removed already, so it can't trigger anything!
+            return []
+
         # Handle tiger
         triggers = []
         if trigger.type == TriggerType.FORWARD_TRIGGER:

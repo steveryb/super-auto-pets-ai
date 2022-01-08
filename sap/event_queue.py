@@ -96,16 +96,18 @@ class EventQueue:
             elif trigger.type is TriggerType.FAINT_PET:
                 # needed for whale and pill
                 logging.debug(f"Fainting pet {trigger.pet}")
-                # We want to set its toughness to 0, so it's ignored for e.g. damage
-                trigger.pet.toughness = 0
-                self.apply_trigger(Trigger(TriggerType.PET_FAINTED, trigger.pet))
+                if trigger.pet.toughness > 0:
+                    # We want to set its toughness to 0, so it's ignored for e.g. damage
+                    trigger.pet.toughness = 0
+                    self.apply_trigger(Trigger(TriggerType.PET_FAINTED, trigger.pet))
 
             elif trigger.type is TriggerType.REDUCE_HEALTH:
                 # needed for skunk
                 logging.debug(f"Reducing health {trigger.pet} {trigger.health_ratio}")
-                trigger.pet.toughness = math.floor(trigger.pet.toughness * (1 - trigger.health_ratio))
-                if trigger.pet.toughness == 0:
-                    self.apply_trigger(Trigger(TriggerType.PET_FAINTED, trigger.pet))
+                if trigger.pet.toughness > 0:
+                    trigger.pet.toughness = math.floor(trigger.pet.toughness * (1 - trigger.health_ratio))
+                    if trigger.pet.toughness == 0:
+                        self.apply_trigger(Trigger(TriggerType.PET_FAINTED, trigger.pet))
 
             else:
                 self.event_queue.extend([

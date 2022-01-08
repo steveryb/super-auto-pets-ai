@@ -22,15 +22,19 @@ class ShopGenerator(ABC):
 
 T = TypeVar("T")
 
+MAX_PETS = 5
+MAX_FOOD = 2
+MAX_TIER = 6
+
 
 class TierShopGenerator(ShopGenerator):
-    def __init__(self, pet_tiers: Tuple[Tuple[Type[Pet], ...], ...], food_tiers: Tuple[Tuple[Type[Food], ...], ...],
+    def __init__(self, pet_tiers: List[List[Type[Pet]]], food_tiers: List[List[Type[Food]]],
                  random_gen: Random = random.Random()):
         super().__init__(random_gen)
         self.pet_tiers = pet_tiers
         self.food_tiers = food_tiers
 
-    def get_from_tier(self, tier: int, tiers: Tuple[Tuple[Type[T], ...], ...]) -> Type[T]:
+    def get_from_tier(self, tier: int, tiers: List[List[Type[T]]]) -> Type[T]:
         available_tiers = tiers[:tier]
         available_items = tuple(item for tier in available_tiers for item in tier)
         return self.random.choice(available_items)
@@ -82,13 +86,13 @@ class Shop:
             return 3
         if 5 <= self.round < 9:
             return 4
-        return 5
+        return MAX_PETS
 
     @property
     def food_size(self) -> int:
         if 0 <= self.round < 3:
             return 1
-        return 2
+        return MAX_FOOD
 
     @property
     def has_open_slot(self) -> bool:
@@ -103,7 +107,7 @@ class Shop:
 
     @property
     def tier(self):
-        return min(((self.round + 1) // 2), 6)
+        return min(((self.round + 1) // 2), MAX_TIER)
 
     @property
     def pets(self) -> List[ShopPet]:

@@ -1,11 +1,12 @@
 import math
 from operator import attrgetter
-from typing import List, Optional, Type, Tuple
+from typing import List, Optional, Type, Tuple, Dict
 
 from sap.pet import Pet, Food, EquipableFood, Trigger, TriggerType, pick_unique_pets, Fly, SingleEatableFood, \
     RandomEatableFood, EatableFood
 from sap.player import Player
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from sap.shop import MAX_TIER
 
 
 class Ant(Pet):
@@ -909,6 +910,10 @@ class Tiger(Pet):
         return triggers
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Summoned pets
+# ---------------------------------------------------------------------------------------------------------------------
+
 class ZombieCricket(Pet):
     @classmethod
     def spawn(cls):
@@ -1170,20 +1175,110 @@ class Coconut(EquipableFood):
         return 0
 
 
-FOOD_TIERS: Tuple[Tuple[Type[Food], ...], ...] = (
-    (Apple, Honey),
-    (Cupcake, MeatBone, SleepingPill),
-    (Garlic, SaladBowl),
-    (CannedFood, Pear),
-    (Chili, Chocolate, Sushi),
-    (Melon, Pizza, Steak, Mushroom)
-)
+@dataclass
+class FoodInfo:
+    food_type: Type[Food]
+    tier: int
 
-PET_TIERS: Tuple[Tuple[Type[Pet], ...], ...] = (
-    (Ant, Beaver, Cricket, Duck, Fish, Horse, Mosquito, Otter, Pig),
-    (Crab, Dodo, Elephant, Flamingo, Hedgehog, Peacock, Rat, Shrimp, Spider, Swan),
-    (Dog, Badger, Blowfish, Camel, Giraffe, Kangaroo, Ox, Rabbit, Sheep),
-    (Whale, Bison, Deer, Dolphin, Hippo, Penguin, Rooster, Skunk, Squirrel, Worm),
-    (Monkey, Cow, Crocodile, Rhino, Scorpion, Seal, Shark, Turkey),
-    (Boar, Cat, Dragon, Gorilla, Fly, Leopard, Mammoth, Snake, Tiger)  # TODO: cat, (food)
-)
+
+ID_TO_FOOD_INFO: Dict[int, FoodInfo] = {
+    0: FoodInfo(Apple, 0),
+    1: FoodInfo(Honey, 0),
+    2: FoodInfo(Cupcake, 1),
+    3: FoodInfo(MeatBone, 1),
+    4: FoodInfo(SleepingPill, 1),
+    5: FoodInfo(Garlic, 2),
+    6: FoodInfo(SaladBowl, 2),
+    7: FoodInfo(CannedFood, 3),
+    8: FoodInfo(Pear, 3),
+    9: FoodInfo(Chili, 4),
+    10: FoodInfo(Chocolate, 4),
+    11: FoodInfo(Sushi, 4),
+    12: FoodInfo(Melon, 5),
+    13: FoodInfo(Pizza, 5),
+    14: FoodInfo(Steak, 5),
+    15: FoodInfo(Mushroom, 5),
+    16: FoodInfo(Coconut, -1),
+    17: FoodInfo(Peanut, -1),
+    18: FoodInfo(Milk, -1),
+}
+
+FOOD_TIERS: List[List[Type[Food]]] = [
+    [info.food_type for info in ID_TO_FOOD_INFO.values() if info.tier == tier]
+    for tier in range(0, MAX_TIER)
+]
+
+
+@dataclass
+class PetInfo:
+    pet_type: Type[Pet]
+    tier: int
+
+
+ID_TO_PET_INFO: Dict[int, PetInfo] = {
+    0: PetInfo(Ant, 0),
+    1: PetInfo(Beaver, 0),
+    2: PetInfo(Cricket, 0),
+    3: PetInfo(Duck, 0),
+    4: PetInfo(Fish, 0),
+    5: PetInfo(Horse, 0),
+    6: PetInfo(Mosquito, 0),
+    7: PetInfo(Otter, 0),
+    8: PetInfo(Crab, 1),
+    9: PetInfo(Dodo, 1),
+    10: PetInfo(Elephant, 1),
+    11: PetInfo(Flamingo, 1),
+    12: PetInfo(Hedgehog, 1),
+    13: PetInfo(Peacock, 1),
+    14: PetInfo(Rat, 1),
+    15: PetInfo(Shrimp, 1),
+    16: PetInfo(Spider, 1),
+    17: PetInfo(Swan, 1),
+    18: PetInfo(Dog, 2),
+    19: PetInfo(Badger, 2),
+    20: PetInfo(Blowfish, 2),
+    21: PetInfo(Camel, 2),
+    22: PetInfo(Giraffe, 2),
+    23: PetInfo(Kangaroo, 2),
+    24: PetInfo(Ox, 2),
+    25: PetInfo(Rabbit, 2),
+    26: PetInfo(Sheep, 2),
+    27: PetInfo(Whale, 3),
+    28: PetInfo(Bison, 3),
+    29: PetInfo(Deer, 3),
+    30: PetInfo(Dolphin, 3),
+    31: PetInfo(Hippo, 3),
+    32: PetInfo(Penguin, 3),
+    33: PetInfo(Rooster, 3),
+    34: PetInfo(Skunk, 3),
+    35: PetInfo(Squirrel, 3),
+    36: PetInfo(Worm, 3),
+    37: PetInfo(Monkey, 4),
+    38: PetInfo(Cow, 4),
+    39: PetInfo(Crocodile, 4),
+    40: PetInfo(Rhino, 4),
+    41: PetInfo(Scorpion, 4),
+    42: PetInfo(Seal, 4),
+    43: PetInfo(Shark, 4),
+    44: PetInfo(Turkey, 4),
+    45: PetInfo(Boar, 5),
+    46: PetInfo(Cat, 5),
+    47: PetInfo(Dragon, 5),
+    48: PetInfo(Gorilla, 5),
+    49: PetInfo(Fly, 5),
+    50: PetInfo(Leopard, 5),
+    51: PetInfo(Mammoth, 5),
+    52: PetInfo(Snake, 5),
+    53: PetInfo(ZombieCricket, -1),
+    54: PetInfo(DirtyRat, -1),
+    55: PetInfo(Ram, -1),
+    56: PetInfo(Chick, -1),
+    57: PetInfo(ZombieFly, -1),
+    58: PetInfo(Bee, -1),
+    59: PetInfo(Bus, -1)
+}
+
+PET_TIERS: List[List[Type[Pet]]] = [
+    [info.pet_type for info in ID_TO_PET_INFO.values() if info.tier == tier]
+    for tier in range(0, MAX_TIER)
+]

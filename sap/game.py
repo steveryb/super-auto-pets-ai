@@ -57,7 +57,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     random_gen = Random()
     shop_generator = TierShopGenerator(PET_TIERS, FOOD_TIERS)
-    for i in range(1000):
+    for i in range(1):
         game = Game(
             # RealPlayer(Shop(shop_generator)),
             RandomPlayer(Shop(shop_generator), random_gen),

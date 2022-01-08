@@ -109,9 +109,11 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     b = Battle(
-        [Scorpion.spawn(), Scorpion.spawn(), Scorpion.spawn()],
-        [Pet(symbol="P", toughness=100, power=100, equipped_food=Garlic.spawn()),  # garlic reduces to 1, so dies
-         Pet(symbol="P", toughness=100, power=100, equipped_food=Melon.spawn())  # should take a hit though
-         ]
+        [
+            Sheep(symbol="S", power=2, toughness=3),
+            Whale(symbol="W", power=6, toughness=8)],
+        [
+            Dolphin(symbol="D", power=4, toughness=6),
+        ]
     )
     b.battle()

@@ -1,7 +1,7 @@
 from sap.pet_impl import *
 from sap.battle import Battle
 from test_helpers import dummy_pet, TestRandom, DummyPlayer
-
+import logging
 
 class TestPetImplBattle:
     def test_solo_mosquito(self):
@@ -533,3 +533,21 @@ class TestPetImplBattle:
         assert b.team_1 == []
         assert len(b.team_2) == 1
         assert b.team_2[0].toughness == 1
+
+    def test_whale_with_fainted_pet(self):
+        b = Battle(
+            [Sheep.spawn(), Whale.spawn()],
+            [Dolphin.spawn()]
+        )
+        b.battle()
+        assert b.team_2 == []
+        assert len(b.team_1) == 1
+        assert b.team_1[0].toughness == 2
+
+    def test_skunk_with_fainted_pet(self):
+        b = Battle(
+            [Skunk.spawn()],
+            [Cricket(power=1, toughness=100, symbol="C"), Whale.spawn()]
+        )
+        b.battle()
+
