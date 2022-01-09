@@ -22,7 +22,8 @@ class Action(Enum):
     BUY_FOOD_FOR_PET = 3
     TOGGLE_FREEZE_PET = 4
     TOGGLE_FREEZE_FOOD = 5
-    END_TURN = 6
+    SELL_PET = 6
+    END_TURN = 7
 
     @staticmethod
     def get_action(val: int):
@@ -104,7 +105,7 @@ def empty_pet_observation() -> Tuple:
         0,  # toughness
         0,  # temp_buff_power
         0,  # temp_buff_toughness
-        empty_food_observation() # equipped_food
+        empty_food_observation()  # equipped_food
     )
 
 
@@ -133,11 +134,11 @@ def player_observation(observed_player: player.Player):
         'shop_food': observation_list(observed_shop.food, empty_food_observation,
                                       lambda item: food_observation(item.food), shop.MAX_FOOD),
         'shop_frozen_food': np.array(observation_list(observed_shop.food, lambda: False, lambda item: item.frozen,
-                                             shop.MAX_FOOD)),
+                                                      shop.MAX_FOOD)),
         'shop_pets': observation_list(observed_shop.pets, empty_pet_observation, lambda item: pet_observation(item.pet),
                                       shop.MAX_PETS),
         'shop_frozen_pets': np.array(observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen,
-                                             shop.MAX_PETS)),
+                                                      shop.MAX_PETS)),
     }
 
 
@@ -153,7 +154,8 @@ class SapRandomVersusEnv0(gym.Env):
             player.MAX_PETS,  # index of pet on my team
         ))
 
-        self.observation_space = player_space()
+        self.real_observation_space = player_space()
+        self.observation_space = spaces.flatten_space(self.real_observation_space)
         self.game: Optional[sap.game.Game] = None
 
     def step(self, action: Tuple[int, int, int]):
@@ -169,28 +171,34 @@ class SapRandomVersusEnv0(gym.Env):
                 p1.reroll()
             elif action_enum is Action.BUY_AND_PLACE_PET:
                 p1.buy_and_place_pet(shop_index, pet_index)
+                reward = 1
             elif action_enum is Action.BUY_AND_COMBINE_PET:
                 p1.buy_and_combine_pet(shop_index, pet_index)
+                reward = 1
             elif action_enum is Action.BUY_FOOD_FOR_PET:
                 p1.buy_and_apply_food(shop_index, pet_index)
+                reward = 1
             elif action_enum is Action.TOGGLE_FREEZE_PET:
                 p1.shop.toggle_freeze_pet(shop_index)
             elif action_enum is Action.TOGGLE_FREEZE_FOOD:
                 p1.shop.toggle_freeze_food(shop_index)
+            elif action_enum is Action.SELL_PET:
+                p1.sell(pet_index)
             elif action_enum is Action.END_TURN:
                 p1.end_turn()
-                result = self.game.play_round()
+                self.game.player_2.perform_buys(self.game.round)
+                result = self.game.battle_phase()
                 if result is battle.Result.TEAM_1_WINS:
                     # TODO: make this the number of points instead, but this works for now
-                    reward = self.game.player_1.wins
-                if result is battle.Result.TEAM_2_WINS:
-                    reward = -3
+                    reward = 100*self.game.player_1.wins
+                self.game.start_round()
+                p1.start_turn(self.game.round)
         except (ValueError, IndexError):
             pass  # ignore invalid actions
 
-        done = not self.game.player_1.has_lives()
+        done = not self.game.player_1.has_lives()  or not self.game.player_2.has_lives()
         info = {"Player 1": player_observation(self.game.player_1), "Player 2": player_observation(self.game.player_2)}
-        observation = player_observation(self.game.player_1)
+        observation = spaces.flatten(self.real_observation_space, player_observation(self.game.player_1))
         return observation, reward, done, info
 
     def reset(self):
@@ -198,8 +206,10 @@ class SapRandomVersusEnv0(gym.Env):
             EnvironmentPlayer(name="Environment Player", shop=sap.game.create_shop()),
             sap.game.create_random_player()
         )
+        self.game.start_round()
+        self.game.player_1.start_turn(self.game.round)
 
-        return player_observation(self.game.player_1)
+        return spaces.flatten(self.real_observation_space, player_observation(self.game.player_1))
 
     def render(self, mode='human'):
         print(self.game.player_1, self.game.player_2)
@@ -210,8 +220,19 @@ class SapRandomVersusEnv0(gym.Env):
 
 if __name__ == "__main__":
     from stable_baselines3.common.env_checker import check_env
+    from stable_baselines3 import PPO
 
     env = SapRandomVersusEnv0()
-    print(player_space())
-    print(env.reset())
+
     check_env(env)
+
+    model = PPO("MlpPolicy", env, verbose=1)
+    model.learn(total_timesteps=1000000)
+
+    obs = env.reset()
+    done = False
+    while not done:
+        action, _states = model.predict(obs)
+        obs, rewards, done, info = env.step(action)
+        env.render()
+        input()

@@ -3,7 +3,7 @@ from operator import attrgetter
 from typing import List, Optional, Type, Tuple, Dict
 
 from sap.pet import Pet, Food, EquipableFood, Trigger, TriggerType, pick_unique_pets, Fly, SingleEatableFood, \
-    RandomEatableFood, EatableFood
+    RandomEatableFood, EatableFood, ZombieFly
 from sap.player import Player
 from dataclasses import dataclass
 from sap.shop import MAX_TIER
@@ -961,16 +961,6 @@ class Chick(Pet):
     @classmethod
     def create(cls, power: int):
         return cls(power=power, toughness=1, symbol="🐤")
-
-
-class ZombieFly(Pet):
-    @classmethod
-    def spawn(cls):
-        return cls.create(power=5, toughness=5)
-
-    @classmethod
-    def create(cls, power: int, toughness: int):
-        return cls(power=power, toughness=toughness, symbol="🧟🪰")
 
 
 class Bee(Pet):

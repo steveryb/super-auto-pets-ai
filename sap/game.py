@@ -36,9 +36,12 @@ class Game:
 
         return result
 
-    def play_round(self) -> Result:
+    def start_round(self):
         self.round += 1
         logging.info(f"Starting round {self.round}")
+
+    def play_round(self) -> Result:
+        self.start_round()
         self.buy_phase()
         logging.info(f"Battle between {self.player_1} and {self.player_2}")
         result = self.battle_phase()
