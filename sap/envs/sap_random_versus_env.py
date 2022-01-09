@@ -45,63 +45,67 @@ O = TypeVar("O")
 def observation_list(l: List[T],
                      empty_gen: Callable[[], O],
                      mapper: Callable[[Union[T, Optional[T]]], O],
-                     size: int) -> np.ndarray:
-    return np.array([mapper(elem) for elem in l] + [empty_gen() for _ in range(size - len(l))])
+                     size: int) -> List[O]:
+    return [mapper(elem) for elem in l] + [empty_gen() for _ in range(size - len(l))]
 
 
 def food_space():
-    return spaces.Dict({
-        'id': spaces.Discrete(len(pet_impl.ID_TO_FOOD_INFO)),
-        'power': spaces.Discrete(pet.MAX_POWER + 1),
-        'toughness': spaces.Discrete(pet.MAX_TOUGHNESS + 1),
-    })
+    return spaces.MultiDiscrete([
+        len(pet_impl.ID_TO_FOOD_INFO),  # id
+        pet.MAX_POWER + 1,  # power
+        pet.MAX_TOUGHNESS + 1,  # toughness
+    ])
 
 
-def empty_food_observation() -> Dict[str, int]:
-    return {'id': 0, 'power': 0, 'toughness': 0}
+def empty_food_observation() -> List[int]:
+    return [
+        0,  # id
+        0,  # power
+        0,  # toughness
+    ]
 
 
-def food_observation(food: Optional[pet.Food]) -> Dict[str, int]:
+def food_observation(food: Optional[pet.Food]) -> List[int]:
     if food is None:
         return empty_food_observation()
-    return {
-        'id': pet_impl.FOOD_TYPE_TO_ID[type(food)],
-        'power': food.power,
-        'toughness': food.toughness
-    }
+    return [
+        pet_impl.FOOD_TYPE_TO_ID[type(food)],
+        food.power,
+        food.toughness
+    ]
 
 
 def pet_space():
-    return spaces.Dict({
-        'id': spaces.Discrete(len(pet_impl.ID_TO_PET_INFO)),
-        # 'power': spaces.Discrete(pet.MAX_POWER + 1),
-        # 'toughness': spaces.Discrete(pet.MAX_TOUGHNESS + 1),
-        # 'temp_buff_power': spaces.Discrete(pet.MAX_POWER + 1),
-        # 'temp_buff_tougness': spaces.Discrete(pet.MAX_TOUGHNESS + 1),
-        # 'equipped_food': food_space(),
-    })
+    return spaces.Tuple((
+        spaces.Discrete(len(pet_impl.ID_TO_PET_INFO)),  # id
+        spaces.Discrete(pet.MAX_POWER + 1),  # power
+        spaces.Discrete(pet.MAX_TOUGHNESS + 1),  # toughness
+        spaces.Discrete(pet.MAX_POWER + 1),  # temp_buff_power
+        spaces.Discrete(pet.MAX_TOUGHNESS + 1),  # temp_buff_tougness
+        food_space(),  # equipped_food
+    ))
 
 
-def pet_observation(observed_pet: pet.Pet) -> Dict[str, Union[int, Dict[str, int]]]:
-    return {
-        'id': pet_impl.PET_TYPE_TO_ID[type(observed_pet)],
-        # 'power': observed_pet.power,
-        # 'toughness': observed_pet.toughness,
-        # 'temp_buff_power': observed_pet.temp_buff_power,
-        # 'temp_buff_toughness': observed_pet.temp_buff_toughness,
-        # 'equipped_food': food_observation(observed_pet.equipped_food)
-    }
+def pet_observation(observed_pet: pet.Pet) -> Tuple:
+    return (
+        pet_impl.PET_TYPE_TO_ID[type(observed_pet)],
+        observed_pet.power,
+        observed_pet.toughness,
+        observed_pet.temp_buff_power,
+        observed_pet.temp_buff_toughness,
+        food_observation(observed_pet.equipped_food)
+    )
 
 
-def empty_pet_observation() -> Dict[str, Union[int, Dict[str, int]]]:
-    return {
-        'id': 0,
-        # 'power': 0,
-        # 'toughness': 0,
-        # 'temp_buff_power': 0,
-        # 'temp_buff_toughness': 0,
-        # 'equipped_food': empty_food_observation()
-    }
+def empty_pet_observation() -> Tuple:
+    return (
+        0,  # id
+        0,  # power
+        0,  # toughness
+        0,  # temp_buff_power
+        0,  # temp_buff_toughness
+        empty_food_observation() # equipped_food
+    )
 
 
 def player_space() -> spaces.Space:
@@ -112,9 +116,9 @@ def player_space() -> spaces.Space:
         'wins': spaces.Discrete(10),
         'won_last': spaces.Discrete(2),
         'shop_food': spaces.Tuple((food_space(), food_space())),
-        'shop_frozen_food':spaces.MultiBinary(shop.MAX_FOOD),
-        'shop_pets':spaces.Tuple(tuple(pet_space() for _ in range(shop.MAX_PETS))),
-        'shop_frozen_pets':spaces.MultiBinary(shop.MAX_PETS),
+        'shop_frozen_food': spaces.MultiBinary(shop.MAX_FOOD),
+        'shop_pets': spaces.Tuple(tuple(pet_space() for _ in range(shop.MAX_PETS))),
+        'shop_frozen_pets': spaces.MultiBinary(shop.MAX_PETS),
     })
 
 
@@ -127,11 +131,13 @@ def player_observation(observed_player: player.Player):
         'wins': observed_player.wins,
         'won_last': 1 if observed_player.won_last else 0,
         'shop_food': observation_list(observed_shop.food, empty_food_observation,
-                                 lambda item: food_observation(item.food), shop.MAX_FOOD),
-        'shop_frozen_food': observation_list(observed_shop.food, lambda: False, lambda item: item.frozen, shop.MAX_FOOD),
+                                      lambda item: food_observation(item.food), shop.MAX_FOOD),
+        'shop_frozen_food': np.array(observation_list(observed_shop.food, lambda: False, lambda item: item.frozen,
+                                             shop.MAX_FOOD)),
         'shop_pets': observation_list(observed_shop.pets, empty_pet_observation, lambda item: pet_observation(item.pet),
-                                 shop.MAX_PETS),
-        'shop_frozen_pets': observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen, shop.MAX_PETS),
+                                      shop.MAX_PETS),
+        'shop_frozen_pets': np.array(observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen,
+                                             shop.MAX_PETS)),
     }
 
 
@@ -201,8 +207,10 @@ class SapRandomVersusEnv0(gym.Env):
     def close(self):
         pass
 
+
 if __name__ == "__main__":
     from stable_baselines3.common.env_checker import check_env
+
     env = SapRandomVersusEnv0()
     print(player_space())
     print(env.reset())
