@@ -1,19 +1,19 @@
-from player import Player, RealPlayer, RandomPlayer
-from shop import ShopGenerator, Shop, TierShopGenerator
-from battle import Battle, Result
-from random import Random
-from pet import Pet
-from pet_impl import PET_TIERS, FOOD_TIERS
-
-from typing import List, Tuple, Optional
 import logging
+from random import Random
+from typing import List, Tuple
+
+from sap.battle import Battle, Result
+from sap.pet import Pet
+from sap.pet_impl import PET_TIERS, FOOD_TIERS
+from sap.player import Player, RandomPlayer
+from sap.shop import Shop, TierShopGenerator
+
 
 class Game:
     def __init__(self, player_1: Player, player_2: Player):
         self.player_1 = player_1
         self.player_2 = player_2
         self.round = 0
-
 
     def buy_phase(self) -> Tuple[List[Pet], List[Pet]]:
         self.player_1.perform_buys(self.round)
@@ -53,6 +53,14 @@ class Game:
         return last_result
 
 
+def create_shop():
+    return Shop(TierShopGenerator(PET_TIERS, FOOD_TIERS))
+
+
+def create_random_player():
+    return RandomPlayer(create_shop(), Random())
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     random_gen = Random()
@@ -60,7 +68,7 @@ if __name__ == "__main__":
     for i in range(1):
         game = Game(
             # RealPlayer(Shop(shop_generator)),
-            RandomPlayer(Shop(shop_generator), random_gen),
-            RandomPlayer(Shop(shop_generator), random_gen),
+            create_random_player(),
+            create_random_player()
         )
         game.play_game()

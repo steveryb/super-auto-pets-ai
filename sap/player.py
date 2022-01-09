@@ -12,7 +12,7 @@ import logging
 PET_COST = 3
 REROLL_COST = 1
 
-MAX_PLAYER_PETS = 5
+MAX_PETS = 5
 
 class Player(ABC):
     def __init__(self, name: str, shop: Shop, pets: List[Optional[Pet]] = None):
@@ -98,9 +98,9 @@ class Player(ABC):
         Take the given pet, and move it to the given index
         """
         # Note, this isn't summoning a pet, as we use this in the internals when we're not necessarily summoning
-        if self.num_pets() >= MAX_PLAYER_PETS:
+        if self.num_pets() >= MAX_PETS:
             raise ValueError("Already full up on pets")
-        elif target < 0 or target >= MAX_PLAYER_PETS:
+        elif target < 0 or target >= MAX_PETS:
             raise IndexError("Invalid position for a pet")
         else:
             self.pets.insert(target, pet)
@@ -153,10 +153,16 @@ class Player(ABC):
 
     def perform_buys(self, round: int):
         """
-        Wrapper around buy_phase, to set up the phase
+        Wrapper around buy_phase, to start and end turn. Should not contain other logic
         """
         self.start_turn(round)
         self.buy_phase()
+        self.end_turn()
+
+    def end_turn(self):
+        """
+        End the turn
+        """
         self.condense()  # make sure there's no gaps
         self.apply_trigger(Trigger(TriggerType.TURN_ENDED, None))
 
@@ -225,7 +231,7 @@ class RandomPlayer(Player):
             pet_to_feed_index = self.pets.index(self.random.choice(self.pets)) # avoid pet in no position
             self.buy_and_apply_food(food_position, pet_to_feed_index)
 
-        while self.can_buy_pet() and self.num_pets() < MAX_PLAYER_PETS and len(self.shop.pets):
+        while self.can_buy_pet() and self.num_pets() < MAX_PETS and len(self.shop.pets):
             shop_position = self.random.randint(0, len(self.shop.pets) - 1)
             while self.shop.pets[shop_position] is None:
                 shop_position = self.random.randint(0, len(self.shop.pets) - 1)

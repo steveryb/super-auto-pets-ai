@@ -1182,7 +1182,7 @@ class FoodInfo:
 
 
 ID_TO_FOOD_INFO: Dict[int, FoodInfo] = {
-    0: FoodInfo(Apple, 0),
+    0: FoodInfo(None, -1),
     1: FoodInfo(Honey, 0),
     2: FoodInfo(Cupcake, 1),
     3: FoodInfo(MeatBone, 1),
@@ -1201,7 +1201,10 @@ ID_TO_FOOD_INFO: Dict[int, FoodInfo] = {
     16: FoodInfo(Coconut, -1),
     17: FoodInfo(Peanut, -1),
     18: FoodInfo(Milk, -1),
+    19: FoodInfo(Apple, 0),
 }
+
+FOOD_TYPE_TO_ID = {info.food_type: key for key, info in ID_TO_FOOD_INFO.items()}
 
 FOOD_TIERS: List[List[Type[Food]]] = [
     [info.food_type for info in ID_TO_FOOD_INFO.values() if info.tier == tier]
@@ -1216,7 +1219,7 @@ class PetInfo:
 
 
 ID_TO_PET_INFO: Dict[int, PetInfo] = {
-    0: PetInfo(Ant, 0),
+    0: PetInfo(None, -1),
     1: PetInfo(Beaver, 0),
     2: PetInfo(Cricket, 0),
     3: PetInfo(Duck, 0),
@@ -1275,8 +1278,11 @@ ID_TO_PET_INFO: Dict[int, PetInfo] = {
     56: PetInfo(Chick, -1),
     57: PetInfo(ZombieFly, -1),
     58: PetInfo(Bee, -1),
-    59: PetInfo(Bus, -1)
+    59: PetInfo(Bus, -1),
+    60: PetInfo(Ant, 0),
 }
+
+PET_TYPE_TO_ID = {info.pet_type: key for key, info in ID_TO_PET_INFO.items()}
 
 PET_TIERS: List[List[Type[Pet]]] = [
     [info.pet_type for info in ID_TO_PET_INFO.values() if info.tier == tier]

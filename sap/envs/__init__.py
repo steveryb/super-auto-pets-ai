@@ -1,1 +1,1 @@
-from sap.envs.sap_arena_env import SapArenaEnv0
+from sap.envs.sap_random_versus_env import SapRandomVersusEnv0

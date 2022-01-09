@@ -9,6 +9,9 @@ from abc import ABC, abstractmethod
 TeamPair = Tuple[List["Pet"], List["Pet"]]
 
 
+MAX_POWER = 50
+MAX_TOUGHNESS = 50
+
 class TriggerType(Enum):
     # PET TRIGGERS
     PET_FAINTED = auto()
@@ -180,8 +183,8 @@ class Pet:
         return damage
 
     def buff(self, power: int = 0, toughness: int = 0):
-        self.power += power
-        self.toughness += toughness
+        self.power = min(self.power + power, MAX_POWER)
+        self.toughness = min(self.toughness + toughness, MAX_TOUGHNESS)
 
     def temp_buff(self, power: int = 0, toughness: int = 0):
         # the temp buff is to keep track of what's temporary or not. We'll get rid of this after the round
