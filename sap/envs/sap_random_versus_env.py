@@ -13,6 +13,7 @@ import random
 import sap.battle as battle
 
 import numpy as np
+import os
 
 
 class Action(Enum):
@@ -34,6 +35,9 @@ class Action(Enum):
 
 
 class EnvironmentPlayer(sap.player.Player):
+    def __init__(self, given_shop: shop.Shop):
+        super().__init__("Environment Player", given_shop)
+
     def buy_phase(self):
         """Do nothing, do this in the actual algo"""
         pass
@@ -114,16 +118,18 @@ def player_space() -> spaces.Space:
         'pets': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
         'gold': spaces.Discrete(100),
         'lives': spaces.Discrete(100),
-        'wins': spaces.Discrete(10),
+        'wins': spaces.Discrete(11),
         'won_last': spaces.Discrete(2),
         'shop_food': spaces.Tuple((food_space(), food_space())),
         'shop_frozen_food': spaces.MultiBinary(shop.MAX_FOOD),
         'shop_pets': spaces.Tuple(tuple(pet_space() for _ in range(shop.MAX_PETS))),
         'shop_frozen_pets': spaces.MultiBinary(shop.MAX_PETS),
+        'other_team': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
     })
 
 
-def player_observation(observed_player: player.Player):
+def player_observation(observed_game: game.Game):
+    observed_player = observed_game.player_1
     observed_shop = observed_player.shop
     return {
         'pets': observation_list(observed_player.pets, empty_pet_observation, pet_observation, player.MAX_PETS),
@@ -139,6 +145,7 @@ def player_observation(observed_player: player.Player):
                                       shop.MAX_PETS),
         'shop_frozen_pets': np.array(observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen,
                                                       shop.MAX_PETS)),
+        'other_team': observation_list(observed_game.player_2.pets, empty_pet_observation, pet_observation, player.MAX_PETS)
     }
 
 
@@ -157,59 +164,63 @@ class SapRandomVersusEnv0(gym.Env):
         self.real_observation_space = player_space()
         self.observation_space = spaces.flatten_space(self.real_observation_space)
         self.game: Optional[sap.game.Game] = None
+        self.actions_this_turn = 0
 
     def step(self, action: Tuple[int, int, int]):
         reward = 0
 
         action_enum: Action = Action.get_action(val=action[0])
 
+        self.actions_this_turn += 1
         p1 = self.game.player_1
         shop_index = action[1]
         pet_index = action[2]
         try:
-            if action_enum is Action.REROLL:
+            if action_enum is Action.END_TURN or self.actions_this_turn > 100:
+                p1.end_turn()
+                self.game.player_2.perform_buys(self.game.round)
+                result = self.game.battle_phase()
+                if result is battle.Result.TEAM_1_WINS:
+                    # TODO: make this the number of points instead, but this works for now
+                    reward += 10*self.game.player_1.wins
+                self.game.start_round()
+                reward -= self.game.player_1.gold
+                p1.start_turn(self.game.round)
+                self.actions_this_turn = 0
+            elif action_enum is Action.REROLL:
                 p1.reroll()
             elif action_enum is Action.BUY_AND_PLACE_PET:
                 p1.buy_and_place_pet(shop_index, pet_index)
-                reward = 1
+                reward += 1
             elif action_enum is Action.BUY_AND_COMBINE_PET:
                 p1.buy_and_combine_pet(shop_index, pet_index)
-                reward = 1
+                reward += 1
             elif action_enum is Action.BUY_FOOD_FOR_PET:
                 p1.buy_and_apply_food(shop_index, pet_index)
-                reward = 1
+                reward += 1
             elif action_enum is Action.TOGGLE_FREEZE_PET:
                 p1.shop.toggle_freeze_pet(shop_index)
             elif action_enum is Action.TOGGLE_FREEZE_FOOD:
                 p1.shop.toggle_freeze_food(shop_index)
             elif action_enum is Action.SELL_PET:
                 p1.sell(pet_index)
-            elif action_enum is Action.END_TURN:
-                p1.end_turn()
-                self.game.player_2.perform_buys(self.game.round)
-                result = self.game.battle_phase()
-                if result is battle.Result.TEAM_1_WINS:
-                    # TODO: make this the number of points instead, but this works for now
-                    reward = 100*self.game.player_1.wins
-                self.game.start_round()
-                p1.start_turn(self.game.round)
         except (ValueError, IndexError):
             pass  # ignore invalid actions
 
-        done = not self.game.player_1.has_lives()  or not self.game.player_2.has_lives()
-        info = {"Player 1": player_observation(self.game.player_1), "Player 2": player_observation(self.game.player_2)}
-        observation = spaces.flatten(self.real_observation_space, player_observation(self.game.player_1))
+        done = (not self.game.player_1.has_lives()) or self.game.player_1.wins == 10
+        info = player_observation(self.game)
+        observation = spaces.flatten(self.real_observation_space, player_observation(self.game))
         return observation, reward, done, info
 
     def reset(self):
         self.game = sap.game.Game(
-            EnvironmentPlayer(name="Environment Player", shop=sap.game.create_shop()),
+            EnvironmentPlayer(sap.game.create_shop()),
             sap.game.create_random_player()
         )
         self.game.start_round()
         self.game.player_1.start_turn(self.game.round)
 
-        return spaces.flatten(self.real_observation_space, player_observation(self.game.player_1))
+        return spaces.flatten(self.real_observation_space, player_observation(self.game))
 
     def render(self, mode='human'):
         print(self.game.player_1, self.game.player_2)
@@ -221,18 +232,42 @@ class SapRandomVersusEnv0(gym.Env):
 if __name__ == "__main__":
     from stable_baselines3.common.env_checker import check_env
     from stable_baselines3 import PPO
+    import time
+
+    start = time.time_ns()
 
     env = SapRandomVersusEnv0()
 
     check_env(env)
 
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=1000000)
 
     obs = env.reset()
+    model_path = "model_saves/ppo_sap_random_versus.zip"
+
+    if os.path.exists(model_path):
+        print("Loading model")
+        model = PPO.load(model_path, env)
+    else:
+        print("Making new model")
+        model = PPO("MlpPolicy", env, verbose=1)
+
+    timesteps = 10000
+    model.learn(total_timesteps=timesteps)
+    model.save(model_path)
+
+    bot_wins = 0
+    runs = 0
     done = False
-    while not done:
+    while runs < 100:
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
-        env.render()
-        input()
+        print("Doing run", runs, action)
+        if done:
+            if env.game.player_1.wins == 10:
+                bot_wins += 1
+            obs = env.reset()
+            runs += 1
+
+    print("Against a random player, performance", bot_wins, runs)
+    print("Time taken", (time.time_ns() - start) * 1e-9)
+    print("Time taken per timestep", ((time.time_ns() - start) * 1e-9)/timesteps)
