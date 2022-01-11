@@ -251,7 +251,9 @@ if __name__ == "__main__":
         print("Making new model")
         model = PPO("MlpPolicy", env, verbose=1)
 
-    timesteps = 10000
+    seconds_to_train = 5 * 60
+    timesteps = int(seconds_to_train * 360) # rough approximation
+    print("Training for", timesteps)
     model.learn(total_timesteps=timesteps)
     model.save(model_path)
 
@@ -261,11 +263,11 @@ if __name__ == "__main__":
     while runs < 100:
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
-        print("Doing run", runs, action)
         if done:
             if env.game.player_1.wins == 10:
                 bot_wins += 1
             obs = env.reset()
+            print("Doing run", runs)
             runs += 1
 
     print("Against a random player, performance", bot_wins, runs)
