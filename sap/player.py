@@ -14,6 +14,7 @@ REROLL_COST = 1
 
 MAX_PETS = 5
 
+
 class Player(ABC):
     def __init__(self, name: str, shop: Shop, pets: List[Optional[Pet]] = None):
         self.name = name
@@ -115,11 +116,14 @@ class Player(ABC):
 
         return self.pets
 
-    def _apply_food(self, food: Food, target_position:int):
+    def move(self, origin: int, target: int):
+        pet = self.pets.pop(origin)
+        self.place_pet(pet, target)
+
+    def _apply_food(self, food: Food, target_position: int):
         pets_who_ate = food.apply(self, self.pets[target_position])
         for pet in pets_who_ate:
             self.apply_trigger(Trigger(TriggerType.PET_EATEN_SHOP_FOOD, pet, food=food))
-
 
     def buy_and_apply_food(self, shop_position: int, target_position: int):
         logging.debug(f"Buying food {self.shop.food[shop_position]} {self.pets[target_position]}")
@@ -228,7 +232,7 @@ class RandomPlayer(Player):
 
         if self.pets:
             food_position = self.random.randint(0, len(self.shop.food) - 1)
-            pet_to_feed_index = self.pets.index(self.random.choice(self.pets)) # avoid pet in no position
+            pet_to_feed_index = self.pets.index(self.random.choice(self.pets))  # avoid pet in no position
             self.buy_and_apply_food(food_position, pet_to_feed_index)
 
         while self.can_buy_pet() and self.num_pets() < MAX_PETS and len(self.shop.pets):

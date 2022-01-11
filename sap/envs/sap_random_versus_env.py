@@ -1,19 +1,18 @@
-import gym
-from gym import spaces
+import os
 from enum import Enum
-from typing import Optional, Dict, Union, TypeVar, List, Tuple, Callable
+from typing import Optional, Union, TypeVar, List, Tuple, Callable
 
+import gym
+import numpy as np
+from gym import spaces
+
+import sap.battle as battle
 import sap.game
+import sap.game as game
+import sap.pet as pet
+import sap.pet_impl as pet_impl
 import sap.player as player
 import sap.shop as shop
-import sap.pet_impl as pet_impl
-import sap.pet as pet
-import sap.game as game
-import random
-import sap.battle as battle
-
-import numpy as np
-import os
 
 
 class Action(Enum):
@@ -24,7 +23,8 @@ class Action(Enum):
     TOGGLE_FREEZE_PET = 4
     TOGGLE_FREEZE_FOOD = 5
     SELL_PET = 6
-    END_TURN = 7
+    MOVE_PET = 7
+    END_TURN = 8
 
     @staticmethod
     def get_action(val: int):
@@ -80,6 +80,7 @@ def food_observation(food: Optional[pet.Food]) -> List[int]:
     ]
 
 
+# TODO: consider changing this from ID to something that represents the pet?
 def pet_space():
     return spaces.Tuple((
         spaces.Discrete(len(pet_impl.ID_TO_PET_INFO)),  # id
@@ -124,10 +125,11 @@ def player_space() -> spaces.Space:
         'shop_frozen_food': spaces.MultiBinary(shop.MAX_FOOD),
         'shop_pets': spaces.Tuple(tuple(pet_space() for _ in range(shop.MAX_PETS))),
         'shop_frozen_pets': spaces.MultiBinary(shop.MAX_PETS),
-        'other_team': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
+        # 'other_team': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
     })
 
 
+# TODO: consider whether we want other_team - I'm guessing it's better to leave it off?
 def player_observation(observed_game: game.Game):
     observed_player = observed_game.player_1
     observed_shop = observed_player.shop
@@ -145,7 +147,8 @@ def player_observation(observed_game: game.Game):
                                       shop.MAX_PETS),
         'shop_frozen_pets': np.array(observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen,
                                                       shop.MAX_PETS)),
-        'other_team': observation_list(observed_game.player_2.pets, empty_pet_observation, pet_observation, player.MAX_PETS)
+        # 'other_team': observation_list(observed_game.player_2.pets, empty_pet_observation, pet_observation,
+        #                                player.MAX_PETS)
     }
 
 
@@ -182,7 +185,7 @@ class SapRandomVersusEnv0(gym.Env):
                 result = self.game.battle_phase()
                 if result is battle.Result.TEAM_1_WINS:
                     # TODO: make this the number of points instead, but this works for now
-                    reward += 10*self.game.player_1.wins
+                    reward += 10 * self.game.player_1.wins
                 self.game.start_round()
                 reward -= self.game.player_1.gold
                 p1.start_turn(self.game.round)
@@ -204,6 +207,8 @@ class SapRandomVersusEnv0(gym.Env):
                 p1.shop.toggle_freeze_food(shop_index)
             elif action_enum is Action.SELL_PET:
                 p1.sell(pet_index)
+            elif action_enum is Action.MOVE_PET:
+                p1.move(pet_index, shop_index)
         except (ValueError, IndexError):
             pass  # ignore invalid actions
 
@@ -240,7 +245,6 @@ if __name__ == "__main__":
 
     check_env(env)
 
-
     obs = env.reset()
     model_path = "model_saves/ppo_sap_random_versus.zip"
 
@@ -252,7 +256,7 @@ if __name__ == "__main__":
         model = PPO("MlpPolicy", env, verbose=1)
 
     seconds_to_train = 5 * 60
-    timesteps = int(seconds_to_train * 360) # rough approximation
+    timesteps = int(seconds_to_train * 360)  # rough approximation
     print("Training for", timesteps)
     model.learn(total_timesteps=timesteps)
     model.save(model_path)
@@ -272,4 +276,4 @@ if __name__ == "__main__":
 
     print("Against a random player, performance", bot_wins, runs)
     print("Time taken", (time.time_ns() - start) * 1e-9)
-    print("Time taken per timestep", ((time.time_ns() - start) * 1e-9)/timesteps)
+    print("Time taken per timestep", ((time.time_ns() - start) * 1e-9) / timesteps)
