@@ -7,7 +7,6 @@ import numpy as np
 from gym import spaces
 
 import sap.battle as battle
-import sap.game
 import sap.game as game
 import sap.pet as pet
 import sap.pet_impl as pet_impl
@@ -34,7 +33,7 @@ class Action(Enum):
         raise ValueError("Could not find action for value", val)
 
 
-class EnvironmentPlayer(sap.player.Player):
+class EnvironmentPlayer(player.Player):
     def __init__(self, given_shop: shop.Shop):
         super().__init__("Environment Player", given_shop)
 
@@ -167,7 +166,7 @@ class SapRandomVersusEnv0(gym.Env):
 
         self.real_observation_space = player_space()
         self.observation_space = spaces.flatten_space(self.real_observation_space)
-        self.game: Optional[sap.game.Game] = None
+        self.game: Optional[game.Game] = None
         self.actions_this_turn = 0
 
     def step(self, action: Tuple[int, int, int]):
@@ -222,9 +221,9 @@ class SapRandomVersusEnv0(gym.Env):
         return [True for _ in range(sum(self.action_space_dimension))]
 
     def reset(self):
-        self.game = sap.game.Game(
-            EnvironmentPlayer(sap.game.create_shop()),
-            sap.game.create_random_player()
+        self.game = game.Game(
+            EnvironmentPlayer(game.create_shop()),
+            game.create_random_player()
         )
         self.game.start_round()
         self.game.player_1.start_turn(self.game.round)
