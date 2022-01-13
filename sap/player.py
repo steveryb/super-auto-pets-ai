@@ -14,6 +14,7 @@ REROLL_COST = 1
 
 MAX_PETS = 5
 
+STARTING_GOLD = 10
 
 class Player(ABC):
     def __init__(self, name: str, shop: Shop, pets: List[Optional[Pet]] = None):
@@ -30,7 +31,7 @@ class Player(ABC):
         self.won_last: Optional[bool] = None
 
     def start_turn(self, round: int):
-        self.gold = 10
+        self.gold = STARTING_GOLD
         round += 1
         self.shop.setup_for_round(round)
         for pet in self.pets:

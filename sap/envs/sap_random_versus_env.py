@@ -158,11 +158,12 @@ class SapRandomVersusEnv0(gym.Env):
 
     def __init__(self):
         super(SapRandomVersusEnv0, self).__init__()
-        self.action_space = spaces.MultiDiscrete((
+        self.action_space_dimension = (
             len(Action),  # action value
             max(shop.MAX_PETS, shop.MAX_FOOD),  # index in shop
             player.MAX_PETS,  # index of pet on my team
-        ))
+        )
+        self.action_space = spaces.MultiDiscrete(self.action_space_dimension)
 
         self.real_observation_space = player_space()
         self.observation_space = spaces.flatten_space(self.real_observation_space)
@@ -217,6 +218,9 @@ class SapRandomVersusEnv0(gym.Env):
         observation = spaces.flatten(self.real_observation_space, player_observation(self.game))
         return observation, reward, done, info
 
+    def action_masks(self) -> List[bool]:
+        return [True for _ in range(sum(self.action_space_dimension))]
+
     def reset(self):
         self.game = sap.game.Game(
             EnvironmentPlayer(sap.game.create_shop()),
@@ -235,8 +239,10 @@ class SapRandomVersusEnv0(gym.Env):
 
 
 if __name__ == "__main__":
+    # TODO add VecEnv
     from stable_baselines3.common.env_checker import check_env
-    from stable_baselines3 import PPO
+    from sb3_contrib import MaskablePPO
+    from sb3_contrib.common.maskable.utils import get_action_masks
     import time
 
     start = time.time_ns()
@@ -250,12 +256,12 @@ if __name__ == "__main__":
 
     if os.path.exists(model_path):
         print("Loading model")
-        model = PPO.load(model_path, env)
+        model = MaskablePPO.load(model_path, env)
     else:
         print("Making new model")
-        model = PPO("MlpPolicy", env, verbose=1)
+        model = MaskablePPO("MlpPolicy", env, verbose=1)
 
-    seconds_to_train = 5 * 60
+    seconds_to_train = 60
     timesteps = int(seconds_to_train * 360)  # rough approximation
     print("Training for", timesteps)
     model.learn(total_timesteps=timesteps)
@@ -265,7 +271,8 @@ if __name__ == "__main__":
     runs = 0
     done = False
     while runs < 100:
-        action, _states = model.predict(obs)
+        action_masks = get_action_masks(env)
+        action, _states = model.predict(obs, action_masks=action_masks)
         obs, rewards, done, info = env.step(action)
         if done:
             if env.game.player_1.wins == 10:
