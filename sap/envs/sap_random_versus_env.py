@@ -1,6 +1,6 @@
 import os
 from enum import Enum
-from typing import Optional, Union, TypeVar, List, Tuple, Callable
+from typing import Optional, Union, TypeVar, List, Tuple, Callable, Generator
 
 import gym
 import numpy as np
@@ -12,6 +12,23 @@ import sap.pet as pet
 import sap.pet_impl as pet_impl
 import sap.player as player
 import sap.shop as shop
+
+ActionSpaceDimension = Tuple[int, int, int]
+
+
+# From what I can tell from reading the test environment
+# https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/blob/3b007ae93b6177a4ee712f9f1af5dc1183b0abcb/sb3_contrib/common/envs/invalid_actions_env.py#L62-L76
+# The action mask for a multidiscrete space is a flat list, where each slot corresponds to not a different action in
+# the space, but a different dimension. So e.g. if you had dimensions [a,b] it'd be [x_0, x_1, ..., x_a, y_0, ..., y_b],
+# with x_0 = False means that you can't have an action with a=0. This means we can't e.g. enumerate all legal moves,
+# but we can at least block out moves that can't ever work, which is nice!
+
+def get_action_mask(g:game.Game):
+    p1 = g.player_1
+
+
+
+
 
 
 class Action(Enum):
