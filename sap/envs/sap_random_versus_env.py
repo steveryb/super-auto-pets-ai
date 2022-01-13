@@ -188,7 +188,7 @@ class SapRandomVersusEnv0(gym.Env):
                     # TODO: make this the number of points instead, but this works for now
                     reward += 10 * self.game.player_1.wins
                 self.game.start_round()
-                reward -= self.game.player_1.gold
+                reward += player.STARTING_GOLD - self.game.player_1.gold  # reward for gold spent
                 p1.start_turn(self.game.round)
                 self.actions_this_turn = 0
             elif action_enum is Action.REROLL:

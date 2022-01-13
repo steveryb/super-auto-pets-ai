@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from random import Random
@@ -7,14 +8,11 @@ from sap.event_queue import EventQueue
 from sap.pet import Pet, Trigger, TriggerType, Food
 from sap.shop import Shop
 
-import logging
-
 PET_COST = 3
 REROLL_COST = 1
-
 MAX_PETS = 5
-
 STARTING_GOLD = 10
+
 
 class Player(ABC):
     def __init__(self, name: str, shop: Shop, pets: List[Optional[Pet]] = None):
