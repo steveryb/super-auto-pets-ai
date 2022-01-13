@@ -114,6 +114,7 @@ def empty_pet_observation() -> Tuple:
     )
 
 
+# TODO: add battles after we have action masks
 def player_space() -> spaces.Space:
     return spaces.Dict({
         'pets': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
@@ -125,11 +126,10 @@ def player_space() -> spaces.Space:
         'shop_frozen_food': spaces.MultiBinary(shop.MAX_FOOD),
         'shop_pets': spaces.Tuple(tuple(pet_space() for _ in range(shop.MAX_PETS))),
         'shop_frozen_pets': spaces.MultiBinary(shop.MAX_PETS),
-        # 'other_team': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
+        'other_team': spaces.Tuple(tuple(pet_space() for _ in range(player.MAX_PETS))),
     })
 
 
-# TODO: consider whether we want other_team - I'm guessing it's better to leave it off?
 def player_observation(observed_game: game.Game):
     observed_player = observed_game.player_1
     observed_shop = observed_player.shop
@@ -147,8 +147,8 @@ def player_observation(observed_game: game.Game):
                                       shop.MAX_PETS),
         'shop_frozen_pets': np.array(observation_list(observed_shop.pets, lambda: False, lambda item: item.frozen,
                                                       shop.MAX_PETS)),
-        # 'other_team': observation_list(observed_game.player_2.pets, empty_pet_observation, pet_observation,
-        #                                player.MAX_PETS)
+        'other_team': observation_list(observed_game.player_2.pets, empty_pet_observation, pet_observation,
+                                       player.MAX_PETS)
     }
 
 
