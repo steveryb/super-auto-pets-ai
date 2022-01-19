@@ -1,3 +1,4 @@
+import abc
 import os
 from enum import Enum
 from typing import Optional, Union, TypeVar, List, Tuple, Callable, Generator
@@ -12,40 +13,103 @@ import sap.pet as pet
 import sap.pet_impl as pet_impl
 import sap.player as player
 import sap.shop as shop
+from abc import ABC, abstractmethod
 
 ActionSpaceDimension = Tuple[int, int, int]
 
 
-# From what I can tell from reading the test environment
-# https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/blob/3b007ae93b6177a4ee712f9f1af5dc1183b0abcb/sb3_contrib/common/envs/invalid_actions_env.py#L62-L76
-# The action mask for a multidiscrete space is a flat list, where each slot corresponds to not a different action in
-# the space, but a different dimension. So e.g. if you had dimensions [a,b] it'd be [x_0, x_1, ..., x_a, y_0, ..., y_b],
-# with x_0 = False means that you can't have an action with a=0. This means we can't e.g. enumerate all legal moves,
-# but we can at least block out moves that can't ever work, which is nice!
-
-def get_action_mask(g:game.Game):
+def get_action_mask(g: game.Game):
+    # From what I can tell from reading the test environment
+    # https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/blob/3b007ae93b6177a4ee712f9f1af5dc1183b0abcb/sb3_contrib/common/envs/invalid_actions_env.py#L62-L76
+    # The action mask for a multidiscrete space is a flat list, where each slot corresponds to not a different action in
+    # the space, but a different dimension. So e.g. if you had dimensions [a,b] it'd be
+    # [x_0, x_1, ..., x_{a-1}, y_0, ..., y_{b-1}], with x_i = False means that you can't have an action with a=i.
+    # This means we can't e.g. enumerate all legal moves, but we can at least block out moves that can't ever work,
+    # which is nice!
     p1 = g.player_1
+    actions_type_mask = [action.validator.apply(p1) for action in Action]
+    # used for shop, and for moving a pet, so need to check for both
+    max_shop_index = max(len(p1.shop.pets), len(p1.shop.food))
+    source_index_mask = [index < max_shop_index or (index < len(p1.pets) and p1.pets[index] is not None)
+                       for index in range(max(shop.MAX_PETS, shop.MAX_FOOD))]
+    pet_index_mask = [True] * player.MAX_PETS
+    action_mask = actions_type_mask + source_index_mask + pet_index_mask
+    return action_mask
 
 
+class ActionValidator(ABC):
+    @abstractmethod
+    def apply(self, p1: player.Player) -> bool:
+        raise NotImplementedError()
 
 
+class RerollValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return p1.can_reroll()
+
+
+class BuyAndPlacePetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return p1.can_buy_pet() and p1.num_pets() < player.MAX_PETS and len(p1.shop.pets) > 0
+
+
+class BuyAndCombinePetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return p1.can_buy_pet() and p1.num_pets() > 0 and len(p1.shop.pets) > 0
+
+
+class BuyFoodForPetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        if p1.shop.food and p1.num_pets():
+            min_food_cost = min(food_item.food.cost for food_item in p1.shop.food)
+            return p1.gold >= min_food_cost
+        return False
+
+
+class ToggleFreezePetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return len(p1.shop.pets) > 0
+
+
+class ToggleFreezeFoodValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return len(p1.shop.food) > 0
+
+
+class SellPetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return p1.num_pets() > 0
+
+
+class MovePetValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return p1.num_pets() > 1
+
+
+class EndTurnValidator(ActionValidator):
+    def apply(self, p1: player.Player) -> bool:
+        return True
 
 
 class Action(Enum):
-    REROLL = 0
-    BUY_AND_PLACE_PET = 1
-    BUY_AND_COMBINE_PET = 2
-    BUY_FOOD_FOR_PET = 3
-    TOGGLE_FREEZE_PET = 4
-    TOGGLE_FREEZE_FOOD = 5
-    SELL_PET = 6
-    MOVE_PET = 7
-    END_TURN = 8
+    REROLL = (0, RerollValidator())
+    BUY_AND_PLACE_PET = (1, BuyAndPlacePetValidator())
+    BUY_AND_COMBINE_PET = (2, BuyAndCombinePetValidator())
+    BUY_FOOD_FOR_PET = (3, BuyFoodForPetValidator())
+    TOGGLE_FREEZE_PET = (4, ToggleFreezePetValidator())
+    TOGGLE_FREEZE_FOOD = (5, ToggleFreezeFoodValidator())
+    SELL_PET = (6, SellPetValidator())
+    MOVE_PET = (7, MovePetValidator())
+    END_TURN = (8, EndTurnValidator())
+
+    def __init__(self, action_value: int, validator: ActionValidator):
+        self.action_value = action_value
+        self.validator = validator
 
     @staticmethod
     def get_action(val: int):
         for action in Action:
-            if action.value == val:
+            if action.action_value == val:
                 return action
         raise ValueError("Could not find action for value", val)
 
@@ -176,7 +240,7 @@ class SapRandomVersusEnv0(gym.Env):
         super(SapRandomVersusEnv0, self).__init__()
         self.action_space_dimension = (
             len(Action),  # action value
-            max(shop.MAX_PETS, shop.MAX_FOOD),  # index in shop
+            max(shop.MAX_PETS, shop.MAX_FOOD, player.MAX_PETS),  # source index, used for shop (pets + food) and moving
             player.MAX_PETS,  # index of pet on my team
         )
         self.action_space = spaces.MultiDiscrete(self.action_space_dimension)
@@ -189,12 +253,11 @@ class SapRandomVersusEnv0(gym.Env):
     def step(self, action: Tuple[int, int, int]):
         reward = 0
 
-        action_enum: Action = Action.get_action(val=action[0])
+        action_val, shop_index, pet_index = action
+        action_enum: Action = Action.get_action(val=action_val)
 
         self.actions_this_turn += 1
         p1 = self.game.player_1
-        shop_index = action[1]
-        pet_index = action[2]
         try:
             if action_enum is Action.END_TURN or self.actions_this_turn > 100:
                 p1.end_turn()
@@ -225,7 +288,7 @@ class SapRandomVersusEnv0(gym.Env):
             elif action_enum is Action.SELL_PET:
                 p1.sell(pet_index)
             elif action_enum is Action.MOVE_PET:
-                p1.move(pet_index, shop_index)
+                p1.move(shop_index, pet_index)
         except (ValueError, IndexError):
             pass  # ignore invalid actions
 
@@ -235,7 +298,7 @@ class SapRandomVersusEnv0(gym.Env):
         return observation, reward, done, info
 
     def action_masks(self) -> List[bool]:
-        return [True for _ in range(sum(self.action_space_dimension))]
+        return get_action_mask(self.game)
 
     def reset(self):
         self.game = game.Game(
@@ -277,8 +340,8 @@ if __name__ == "__main__":
         print("Making new model")
         model = MaskablePPO("MlpPolicy", env, verbose=1)
 
-    seconds_to_train = 60
-    timesteps = int(seconds_to_train * 360)  # rough approximation
+    seconds_to_train = 8 * 60 * 60
+    timesteps = int(seconds_to_train * 180)  # rough approximation
     print("Training for", timesteps)
     model.learn(total_timesteps=timesteps)
     model.save(model_path)
@@ -286,7 +349,7 @@ if __name__ == "__main__":
     bot_wins = 0
     runs = 0
     done = False
-    while runs < 100:
+    while runs < 1000:
         action_masks = get_action_masks(env)
         action, _states = model.predict(obs, action_masks=action_masks)
         obs, rewards, done, info = env.step(action)
